@@ -83,7 +83,19 @@ namespace Kursova
             StartTimers();
             CheckConnectivity();
             Microsoft.Maui.Networking.Connectivity.ConnectivityChanged += ConnectivityChanged;
+
+            StartClock();
         }
+
+        private void StartClock()
+        {
+            Dispatcher.StartTimer(TimeSpan.FromSeconds(1), () =>
+            {
+                UpdateTime();
+                return true; 
+            });
+        }
+
 
         private void UpdateTime()
         {
@@ -150,11 +162,31 @@ namespace Kursova
                 {
                     _newsHeadlines.Clear();
 
-                    await FetchNewsFromRSS("https://www.pravda.com.ua/rss/view_news/", "Українська Правда");
-                    await FetchNewsFromRSS("https://feeds.bbci.co.uk/ukrainian/rss.xml", "BBC Україна");
+                    var pravdaNews = await FetchNewsFromRSS("https://www.pravda.com.ua/rss/view_news/", "Українська Правда") ?? new List<NewsItem>();
+                    var bbcNews = await FetchNewsFromRSS("https://feeds.bbci.co.uk/ukrainian/rss.xml", "BBC Україна") ?? new List<NewsItem>();
+
+                    var combinedNews = new List<NewsItem>();
+
+                    int maxNewsCount = Math.Max(pravdaNews.Count, bbcNews.Count);
+                    for (int i = 0; i < maxNewsCount; i++)
+                    {
+                        if (i < pravdaNews.Count)
+                        {
+                            combinedNews.Add(pravdaNews[i]);
+                        }
+                        if (i < bbcNews.Count)
+                        {
+                            combinedNews.Add(bbcNews[i]);
+                        }
+                    }
+
+                    int totalIndicators = 10;
+                    for (int i = 0; i < totalIndicators; i++)
+                    {
+                        _newsHeadlines.Add(combinedNews[i % combinedNews.Count]);
+                    }
 
                     UpdateDisplayedNews();
-
                     OnPropertyChanged(nameof(NewsCount));
                 }
                 catch (Exception ex)
@@ -167,99 +199,72 @@ namespace Kursova
                     };
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(30)); // Оновлення новин кожні півгодини
+                await Task.Delay(TimeSpan.FromMinutes(30));
             }
         }
 
-        private async Task FetchNewsFromRSS(string url, string sourceName)
+        private async Task<List<NewsItem>?> FetchNewsFromRSS(string url, string sourceName)
         {
-            if (!_isOnline)
+            try
             {
-                return;
-            }
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-            using (var client = new HttpClient())
-            {
-                var response = await client.GetAsync(url);
-
-                var contentType = response.Content.Headers.ContentType;
-                if (contentType != null && contentType.CharSet != null && !contentType.CharSet.ToLower().Contains("utf-8"))
+                using (var client = new HttpClient())
                 {
-                    var contentStream = await response.Content.ReadAsStreamAsync();
-                    using (var reader = new System.IO.StreamReader(contentStream, Encoding.GetEncoding(contentType.CharSet ?? "utf-8")))
+                    var response = await client.GetAsync(url);
+                    var contentType = response.Content.Headers.ContentType;
+
+                    if (contentType != null && contentType.CharSet != null && !contentType.CharSet.ToLower().Contains("utf-8"))
                     {
-                        var content = await reader.ReadToEndAsync();
-
-                        try
+                        var contentStream = await response.Content.ReadAsStreamAsync();
+                        using (var reader = new System.IO.StreamReader(contentStream, Encoding.GetEncoding(contentType.CharSet ?? "utf-8")))
                         {
-                            var doc = XDocument.Parse(content);
-
-                            var newsItems = doc.Descendants("item")
-                                .Select(x => new NewsItem
-                                {
-                                    Title = x.Element("title")?.Value ?? "Без заголовку",
-                                    Description = x.Element("description")?.Value ?? "Без опису",
-                                    Source = sourceName
-                                })
-                                .Take(5)
-                                .ToList();
-
-                            foreach (var item in newsItems)
-                            {
-                                _newsHeadlines.Add(item);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            CurrentNews = new NewsItem
-                            {
-                                Title = "Помилка парсингу новин",
-                                Description = ex.Message,
-                                Source = "Помилка"
-                            };
+                            var content = await reader.ReadToEndAsync();
+                            return ParseNews(content, sourceName);
                         }
                     }
-                }
-                else
-                {
-                    var contentStream = await response.Content.ReadAsStreamAsync();
-
-                    using (var reader = new System.IO.StreamReader(contentStream, Encoding.UTF8))
+                    else
                     {
-                        var content = await reader.ReadToEndAsync();
-                        try
+                        var contentStream = await response.Content.ReadAsStreamAsync();
+                        using (var reader = new System.IO.StreamReader(contentStream, Encoding.UTF8))
                         {
-                            var doc = XDocument.Parse(content);
-
-                            var newsItems = doc.Descendants("item")
-                                .Select(x => new NewsItem
-                                {
-                                    Title = x.Element("title")?.Value ?? "Без заголовку",
-                                    Description = x.Element("description")?.Value ?? "Без опису",
-                                    Source = sourceName
-                                })
-                                .Take(5)
-                                .ToList();
-
-                            foreach (var item in newsItems)
-                            {
-                                _newsHeadlines.Add(item);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            CurrentNews = new NewsItem
-                            {
-                                Title = "Помилка парсингу новин",
-                                Description = ex.Message,
-                                Source = "Помилка"
-                            };
+                            var content = await reader.ReadToEndAsync();
+                            return ParseNews(content, sourceName);
                         }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка завантаження новин з {sourceName}: {ex.Message}");
+                return new List<NewsItem>();
+            }
+        }
+
+        private List<NewsItem> ParseNews(string content, string sourceName)
+        {
+            var newsItems = new List<NewsItem>(); 
+
+            try
+            {
+                var doc = XDocument.Parse(content);
+                newsItems = doc.Descendants("item")
+                    .Select(x => new NewsItem
+                    {
+                        Title = x.Element("title")?.Value ?? "Без заголовку",
+                        Description = x.Element("description") is XElement descElement && !string.IsNullOrWhiteSpace(descElement.Value)
+                                    ? descElement.Value
+                                    : "Опис новини відсутній.",
+                        Source = sourceName
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка парсингу новин з {sourceName}: {ex.Message}");
+            }
+
+            return newsItems;
         }
 
         private void StartTimers()
@@ -279,7 +284,6 @@ namespace Kursova
                 return true;
             });
         }
-
 
         protected override void OnPropertyChanged(string propertyName)
         {

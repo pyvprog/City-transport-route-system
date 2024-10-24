@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="Kursova.MainPage">
+             x:Class="Kursova.MainPage"
+             Title="">
 
     <Grid>
         <!-- Фонова картинка -->
@@ -12,6 +13,28 @@
 
         <!-- Основний контент -->
         <Grid Padding="20">
+
+            <!-- Напис SIMPLE WAY -->
+            <Grid HorizontalOptions="Center"
+                  VerticalOptions="Start"
+                  Margin="0,150,0,0">
+                <!-- Контур -->
+                <Label Text="SIMPLE WAY"
+                       FontSize="70"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Start"
+                       TextColor="Red"
+                       Padding="1,1,1,1" />
+
+                <!-- Текст -->
+                <Label Text="SIMPLE WAY"
+                       FontSize="70"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Start"
+                       TextColor="White" />
+            </Grid>
 
             <!-- Кнопка Розпочати подорож -->
             <Button x:Name="CounterBtn"
@@ -47,11 +70,11 @@
 
                     <Label Text="{Binding CurrentNews.Description}"
                            FontSize="12"
-                           TextColor="Gray" />
+                           TextColor="Black" />
 
                     <Label Text="{Binding CurrentNews.Source}"
                            FontSize="10"
-                           TextColor="DarkGray"
+                           TextColor="Black"
                            FontAttributes="Italic"
                            HorizontalOptions="End" />
 
