@@ -290,9 +290,10 @@ namespace Kursova
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private void OnCounterClicked(object sender, EventArgs e)
+        private void OnStartButtonClicked(object sender, EventArgs e)
         {
-            DisplayAlert("Подорож", "Подорож розпочата!", "OK");
+            InitialInterface.IsVisible = false;
+            MapInterface.IsVisible = true;
         }
     }
 }

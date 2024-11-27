@@ -12,7 +12,7 @@
                VerticalOptions="FillAndExpand" />
 
         <!-- Основний контент -->
-        <Grid Padding="20">
+        <Grid x:Name="InitialInterface" Padding="20">
 
             <!-- Напис SIMPLE WAY -->
             <Grid HorizontalOptions="Center"
@@ -37,7 +37,7 @@
             </Grid>
 
             <!-- Кнопка Розпочати подорож -->
-            <Button x:Name="CounterBtn"
+            <Button x:Name="StartButton"
                     Text="Розпочати подорож"
                     BackgroundColor="LightGray"
                     TextColor="Black"
@@ -45,7 +45,17 @@
                     VerticalOptions="Center"
                     WidthRequest="250"
                     HeightRequest="100"
-                    CornerRadius="20" />
+                    CornerRadius="20"
+                    Clicked="OnStartButtonClicked">
+                <Button.Triggers>
+                    <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                        <Setter Property="Scale" Value="1.1" />
+                    </Trigger>
+                </Button.Triggers>
+            </Button>
+
+
+
 
             <!-- Блок новин -->
             <Frame BackgroundColor="White"
@@ -58,9 +68,10 @@
                    Opacity="0.8"
                    Margin="10">
                 <StackLayout>
-                    <Label Text="Новини з України" 
+                    <Label Text="Новини з України"
+                           HorizontalOptions="CenterAndExpand"
                            FontAttributes="Bold"
-                           FontSize="16"
+                           FontSize="18"
                            TextColor="Black" />
 
                     <Label Text="{Binding CurrentNews.Title}"
@@ -115,6 +126,48 @@
                 </StackLayout>
             </Frame>
 
+        </Grid>
+
+        <!-- Інтерфейс з картою -->
+        <Grid x:Name="MapInterface" IsVisible="False">
+            <!-- Заднє розмите зображення -->
+            <Image x:Name="BlurredBackground"
+                   Source="background2.png"
+                   Aspect="AspectFill"
+                   HorizontalOptions="FillAndExpand"
+                   VerticalOptions="FillAndExpand" />
+
+            <!-- Поля вводу та карта -->
+            <Grid Padding="20">
+                <!-- Поля вводу -->
+                <Grid VerticalOptions="Start">
+                    <StackLayout Orientation="Horizontal" Spacing="20">
+                        <StackLayout>
+                            <Label Text="Точка відправлення"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start"
+                                   TextColor="Black" />
+                            <Entry x:Name="StartPointEntry"
+                                   Placeholder="Введіть адресу відправлення"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start"/>
+                        </StackLayout>
+
+                        <StackLayout>
+                            <Label Text="Точка прибуття"
+                                   FontAttributes="Bold"
+                                   TextColor="Black" 
+                                   HorizontalOptions="End"
+                                   VerticalOptions="Start"/>
+                            <Entry x:Name="DestinationPointEntry"
+                                   Placeholder="Введіть адресу прибуття"
+                                   HorizontalOptions="End"
+                                   VerticalOptions="Start"/>
+                        </StackLayout>
+                    </StackLayout>
+                </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </ContentPage>
