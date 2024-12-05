@@ -138,35 +138,83 @@
                    VerticalOptions="FillAndExpand" />
 
             <!-- Поля вводу та карта -->
-            <Grid Padding="20">
-                <!-- Поля вводу -->
-                <Grid VerticalOptions="Start">
-                    <StackLayout Orientation="Horizontal" Spacing="20">
-                        <StackLayout>
-                            <Label Text="Точка відправлення"
-                                   FontAttributes="Bold"
-                                   HorizontalOptions="Start"
-                                   VerticalOptions="Start"
-                                   TextColor="Black" />
-                            <Entry x:Name="StartPointEntry"
-                                   Placeholder="Введіть адресу відправлення"
-                                   HorizontalOptions="Start"
-                                   VerticalOptions="Start"/>
-                        </StackLayout>
-
-                        <StackLayout>
-                            <Label Text="Точка прибуття"
-                                   FontAttributes="Bold"
-                                   TextColor="Black" 
-                                   HorizontalOptions="End"
-                                   VerticalOptions="Start"/>
-                            <Entry x:Name="DestinationPointEntry"
-                                   Placeholder="Введіть адресу прибуття"
-                                   HorizontalOptions="End"
-                                   VerticalOptions="Start"/>
-                        </StackLayout>
+            <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,*">
+                <!-- Поля вводу місця відправлення та прибуття -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,*">
+                    <StackLayout Grid.Column="0" Padding="10">
+                        <Label Text="Місце відправлення:"
+                           FontAttributes="Bold"
+                           FontSize="14"
+                           TextColor="White" />
+                        <Entry x:Name="StartPointEntry"
+                           Placeholder="Введіть адресу відправлення"
+                           FontSize="16"
+                           BackgroundColor="White"
+                           TextColor="Black" />
+                    </StackLayout>
+                    <StackLayout Grid.Column="1" Padding="10">
+                        <Label Text="Місце прибуття:"
+                           FontAttributes="Bold"
+                           FontSize="14"
+                           TextColor="White" />
+                        <Entry x:Name="DestinationPointEntry"
+                           Placeholder="Введіть адресу прибуття"
+                           FontSize="16"
+                           BackgroundColor="White"
+                           TextColor="Black" />
                     </StackLayout>
                 </Grid>
+
+                <!-- Поле для введення міста -->
+                <StackLayout Grid.Row="1" Padding="10" BackgroundColor="Transparent">
+                    <Label Text="Введіть назву міста:"
+                       FontAttributes="Bold"
+                       FontSize="14"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+                    <Entry x:Name="CityEntry"
+                       Placeholder="Введіть назву міста вручну"
+                       TextChanged="OnCityEntryTextChanged"
+                       FontSize="16"
+                       BackgroundColor="White"
+                       TextColor="Black"
+                       WidthRequest="300"
+                       HorizontalOptions="Center" />
+                    <!-- Список підказок -->
+                    <CollectionView x:Name="CitySuggestions"
+                                IsVisible="False"
+                                ItemsSource="{Binding FilteredCities}"
+                                SelectionMode="Single"
+                                SelectionChanged="OnCitySelected"
+                                BackgroundColor="White"
+                                HorizontalOptions="Center"
+                                WidthRequest="300">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="10">
+                                    <Label Text="{Binding .}" FontSize="14" TextColor="Black" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </StackLayout>
+
+                <!-- Кнопка -->
+                <Button Grid.Row="2"
+                    Text="Побудувати маршрут"
+                    BackgroundColor="LightGray"
+                    TextColor="Black"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Start"
+                    WidthRequest="200"
+                    Clicked="OnBuildRouteClicked" />
+
+                <!-- Карта -->
+                <WebView x:Name="MapWebView"
+                     Source="map.html"
+                     HorizontalOptions="FillAndExpand"
+                     VerticalOptions="FillAndExpand"
+                     Grid.Row="3" />
             </Grid>
         </Grid>
     </Grid>

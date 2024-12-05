@@ -8,6 +8,9 @@ using System.Xml.Linq;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Networking;
 using System.Text;
+using Microsoft.Maui.Platform;
+using System;
+using System.Globalization;
 
 namespace Kursova
 {
@@ -85,6 +88,8 @@ namespace Kursova
             Microsoft.Maui.Networking.Connectivity.ConnectivityChanged += ConnectivityChanged;
 
             StartClock();
+            InitializeMap();
+            BindingContext = this;
         }
 
         private void StartClock()
@@ -109,7 +114,7 @@ namespace Kursova
 
             if (_isOnline)
             {
-                FetchNews();
+                Task.Run(async () => await FetchNews());
             }
             else
             {
@@ -123,7 +128,7 @@ namespace Kursova
 
             if (_isOnline)
             {
-                FetchNews();
+                Task.Run(async () => await FetchNews());
             }
             else
             {
@@ -149,15 +154,12 @@ namespace Kursova
             }
         }
 
-        private async void FetchNews()
+        private async Task FetchNews()
         {
             if (!_isOnline)
             {
                 return;
             }
-
-            while (_isOnline)
-            {
                 try
                 {
                     _newsHeadlines.Clear();
@@ -200,7 +202,6 @@ namespace Kursova
                 }
 
                 await Task.Delay(TimeSpan.FromMinutes(30));
-            }
         }
 
         private async Task<List<NewsItem>?> FetchNewsFromRSS(string url, string sourceName)
@@ -209,29 +210,23 @@ namespace Kursova
             {
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-                using (var client = new HttpClient())
-                {
-                    var response = await client.GetAsync(url);
-                    var contentType = response.Content.Headers.ContentType;
+                using var client = new HttpClient();
+                var response = await client.GetAsync(url);
+                var contentType = response.Content.Headers.ContentType;
 
-                    if (contentType != null && contentType.CharSet != null && !contentType.CharSet.ToLower().Contains("utf-8"))
-                    {
-                        var contentStream = await response.Content.ReadAsStreamAsync();
-                        using (var reader = new System.IO.StreamReader(contentStream, Encoding.GetEncoding(contentType.CharSet ?? "utf-8")))
-                        {
-                            var content = await reader.ReadToEndAsync();
-                            return ParseNews(content, sourceName);
-                        }
-                    }
-                    else
-                    {
-                        var contentStream = await response.Content.ReadAsStreamAsync();
-                        using (var reader = new System.IO.StreamReader(contentStream, Encoding.UTF8))
-                        {
-                            var content = await reader.ReadToEndAsync();
-                            return ParseNews(content, sourceName);
-                        }
-                    }
+                if (contentType != null && contentType.CharSet != null && !contentType.CharSet.ToLower().Contains("utf-8"))
+                {
+                    var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var reader = new System.IO.StreamReader(contentStream, Encoding.GetEncoding(contentType.CharSet ?? "utf-8"));
+                    var content = await reader.ReadToEndAsync();
+                    return ParseNews(content, sourceName);
+                }
+                else
+                {
+                    var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var reader = new System.IO.StreamReader(contentStream, Encoding.UTF8);
+                    var content = await reader.ReadToEndAsync();
+                    return ParseNews(content, sourceName);
                 }
             }
             catch (Exception ex)
@@ -280,7 +275,7 @@ namespace Kursova
 
             Dispatcher.StartTimer(TimeSpan.FromMinutes(30), () =>
             {
-                FetchNews();
+                _ = FetchNews();
                 return true;
             });
         }
@@ -294,6 +289,103 @@ namespace Kursova
         {
             InitialInterface.IsVisible = false;
             MapInterface.IsVisible = true;
+        }
+
+        private void InitializeMap()
+        {
+            MapWebView.Source = "map.html";
+        }
+
+        //private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
+        //{
+            // Перевіряємо, чи є вибране місто
+        //    if (e.CurrentSelection?.FirstOrDefault() is string selectedCity)
+         //   {
+         //       CityEntry.Text = selectedCity; // Заповнюємо поле введення обраним містом
+        //        CitySuggestions.IsVisible = false; // Ховаємо список підказок
+        //
+        //        // Викликаємо метод переміщення карти до вибраного міста
+        //        await MoveMapToCity(selectedCity);
+        //    }
+        //}
+
+        private Dictionary<string, (double Latitude, double Longitude)> CityCoordinates = new()
+        {
+            { "Київ", (50.4501, 30.5234) },
+            { "Львів", (49.8397, 24.0297) },
+            { "Херсон", (46.6356, 32.6164) }
+        };
+
+        private ObservableCollection<string> _allCities = new ObservableCollection<string>
+        {
+            "Київ", "Львів", "Херсон", "Одеса", "Дніпро", "Харків", "Запоріжжя", "Вінниця", "Миколаїв"
+        };
+
+        public ObservableCollection<string> FilteredCities { get; set; } = new ObservableCollection<string>();
+
+        private void OnCityEntryTextChanged(object sender, TextChangedEventArgs e)
+        {
+            string searchText = e.NewTextValue?.ToLower() ?? string.Empty;
+
+            // Фільтруємо список міст
+            FilteredCities.Clear();
+            var filtered = _allCities.Where(c => c.ToLower().StartsWith(searchText)).ToList();
+
+            foreach (var city in filtered)
+            {
+                FilteredCities.Add(city);
+            }
+
+            CitySuggestions.IsVisible = FilteredCities.Count > 0;
+        }
+
+        // Вибір міста зі списку підказок
+        private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.CurrentSelection.FirstOrDefault() is string selectedCity)
+            {
+                CityEntry.Text = selectedCity;
+                CitySuggestions.IsVisible = false;
+                await MoveMapToCity(selectedCity);
+            }
+        }
+
+        private async void OnCityEntryCompleted(object sender, EventArgs e)
+        {
+            string? enteredCity = CityEntry?.Text?.Trim(); // Перевірка на null
+            if (!string.IsNullOrEmpty(enteredCity))
+            {
+                await MoveMapToCity(enteredCity);
+            }
+        }
+
+        private async Task MoveMapToCity(string cityName)
+        {
+            if (CityCoordinates.TryGetValue(cityName, out var coordinates))
+            {
+                Console.WriteLine($"MoveMapToCity called with: Latitude={coordinates.Latitude}, Longitude={coordinates.Longitude}");
+                string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
+                await MapWebView.EvaluateJavaScriptAsync(script);
+            }
+            else
+            {
+                await DisplayAlert("Місто не знайдено", "Цього міста наразі немає в базі.", "ОК");
+            }
+        }
+
+        private void OnMapTapped(object sender, EventArgs e)
+        {
+            CitySuggestions.IsVisible = false;
+        }
+
+        private void OnBuildRouteClicked(object sender, EventArgs e)
+        {
+            DisplayAlert("Побудова маршруту", "Логіка побудови маршруту буде додана пізніше.", "OK");
+        }
+
+        private void OnMapLoaded(object sender, WebNavigatedEventArgs e)
+        {
+            // Карта успішно завантажена
         }
     }
 }
