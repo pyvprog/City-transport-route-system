@@ -11,6 +11,7 @@ using System.Text;
 using Microsoft.Maui.Platform;
 using System;
 using System.Globalization;
+using System.Windows.Input;
 
 namespace Kursova
 {
@@ -107,14 +108,14 @@ namespace Kursova
             CurrentTime = DateTime.Now.ToString("HH:mm");
         }
 
-        private void CheckConnectivity()
+        private async void CheckConnectivity()
         {
             var current = Microsoft.Maui.Networking.Connectivity.Current.NetworkAccess;
             _isOnline = current == Microsoft.Maui.Networking.NetworkAccess.Internet;
 
             if (_isOnline)
             {
-                Task.Run(async () => await FetchNews());
+                await FetchNews();
             }
             else
             {
@@ -122,13 +123,13 @@ namespace Kursova
             }
         }
 
-        private void ConnectivityChanged(object? sender, Microsoft.Maui.Networking.ConnectivityChangedEventArgs e)
+        private async void ConnectivityChanged(object? sender, Microsoft.Maui.Networking.ConnectivityChangedEventArgs e)
         {
             _isOnline = e.NetworkAccess == Microsoft.Maui.Networking.NetworkAccess.Internet;
 
             if (_isOnline)
             {
-                Task.Run(async () => await FetchNews());
+                await FetchNews();
             }
             else
             {
@@ -275,7 +276,17 @@ namespace Kursova
 
             Dispatcher.StartTimer(TimeSpan.FromMinutes(30), () =>
             {
-                _ = FetchNews();
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await FetchNews();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error fetching news: {ex.Message}");
+                    }
+                });
                 return true;
             });
         }
@@ -327,7 +338,6 @@ namespace Kursova
         {
             string searchText = e.NewTextValue?.ToLower() ?? string.Empty;
 
-            // Фільтруємо список міст
             FilteredCities.Clear();
             var filtered = _allCities.Where(c => c.ToLower().StartsWith(searchText)).ToList();
 
@@ -373,10 +383,16 @@ namespace Kursova
             }
         }
 
-        private void OnMapTapped(object sender, EventArgs e)
+        private void OnTapGestureRecognizerTapped(object sender, EventArgs e)
         {
             CitySuggestions.IsVisible = false;
         }
+
+        private void OnEntryFocused(object sender, FocusEventArgs e)
+        {
+            CitySuggestions.IsVisible = false; // Ховати список підказок
+        }
+
 
         private void OnBuildRouteClicked(object sender, EventArgs e)
         {

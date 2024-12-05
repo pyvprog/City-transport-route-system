@@ -1,8 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Kursova.Converters"
              x:Class="Kursova.MainPage"
              Title="">
+
+    <!-- Ресурси сторінки -->
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <local:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+            <local:AvailabilityConverter x:Key="AvailabilityConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
 
     <Grid>
         <!-- Фонова картинка -->
@@ -181,24 +190,51 @@
                        WidthRequest="300"
                        HorizontalOptions="Center" />
                     <!-- Список підказок -->
-                    <CollectionView x:Name="CitySuggestions"
-                                IsVisible="False"
-                                ItemsSource="{Binding FilteredCities}"
-                                SelectionMode="Single"
-                                SelectionChanged="OnCitySelected"
-                                BackgroundColor="White"
-                                HorizontalOptions="Center"
-                                WidthRequest="300">
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Padding="10">
-                                    <Label Text="{Binding .}" FontSize="14" TextColor="Black" />
-                                </Grid>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
+                    <Frame IsVisible="{Binding FilteredCities.Count, Converter={StaticResource GreaterThanZeroConverter}}"
+                            BackgroundColor="White"
+                            Padding="0"
+                            HasShadow="True"
+                            CornerRadius="5"
+                            Margin="0,-10,0,0"
+                            WidthRequest="300"
+                            ZIndex="10"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Start">
+                        <CollectionView x:Name="CitySuggestions"
+                                        ItemsSource="{Binding FilteredCities}"
+                                        SelectionMode="Single"
+                                        SelectionChanged="OnCitySelected">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="10">
+                                        <StackLayout>
+                                            <Label Text="{Binding .}" 
+                                                   FontSize="14" 
+                                                   TextColor="Black" />
+                                            <Label Text="(Наразі недоступно)" 
+                                                    FontSize="12"
+                                                    FontAttributes="Italic"
+                                                    TextColor="Gray"
+                                                    IsVisible="{Binding ., Converter={StaticResource AvailabilityConverter}}" />
+                                        </StackLayout>
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Frame>
                 </StackLayout>
 
+                <!-- Жест для закриття підказок -->
+                <BoxView
+                        BackgroundColor="Transparent"
+                        InputTransparent="{Binding FilteredCities.Count, Converter={StaticResource GreaterThanZeroConverter}, ConverterParameter=True}"
+                        IsVisible="{Binding FilteredCities.Count, Converter={StaticResource GreaterThanZeroConverter}}"
+                        Grid.RowSpan="4"
+                        ZIndex="1">
+                    <BoxView.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTapGestureRecognizerTapped" />
+                    </BoxView.GestureRecognizers>
+                </BoxView>
                 <!-- Кнопка -->
                 <Button Grid.Row="2"
                     Text="Побудувати маршрут"
