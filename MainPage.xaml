@@ -198,7 +198,8 @@
                 </StackLayout>
 
                 <!-- Список підказок -->
-                <Frame IsVisible="{Binding FilteredCities.Count, Converter={StaticResource GreaterThanZeroConverter}}"
+                <Frame x:Name="CitySuggestionsParent"
+                        IsVisible="{Binding FilteredCities.Count, Converter={StaticResource GreaterThanZeroConverter}}"
                         BackgroundColor="White"
                         Padding="0"
                         HasShadow="True"

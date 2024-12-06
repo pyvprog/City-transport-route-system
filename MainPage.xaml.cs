@@ -346,23 +346,29 @@ namespace Kursova
                 FilteredCities.Add(city);
             }
 
+            const int itemHeight = 50;
+            const int maxHeight = 300;
+            int calculatedHeight = FilteredCities.Count > 0 ? Math.Min(FilteredCities.Count * itemHeight, maxHeight) : 0;
+
+            AbsoluteLayout.SetLayoutBounds(CitySuggestionsParent, new Rect(0.5, 155, 300, calculatedHeight));
+
             CitySuggestions.IsVisible = FilteredCities.Count > 0;
         }
 
-        // Вибір міста зі списку підказок
         private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
         {
             if (e.CurrentSelection.FirstOrDefault() is string selectedCity)
             {
                 CityEntry.Text = selectedCity;
-                CitySuggestions.IsVisible = false;
+                CitySuggestions.SelectedItem = null;
+                FilteredCities.Clear();
                 await MoveMapToCity(selectedCity);
             }
         }
 
         private async void OnCityEntryCompleted(object sender, EventArgs e)
         {
-            string? enteredCity = CityEntry?.Text?.Trim(); // Перевірка на null
+            string? enteredCity = CityEntry?.Text?.Trim();
             if (!string.IsNullOrEmpty(enteredCity))
             {
                 await MoveMapToCity(enteredCity);
@@ -390,7 +396,7 @@ namespace Kursova
 
         private void OnEntryFocused(object sender, FocusEventArgs e)
         {
-            CitySuggestions.IsVisible = false; // Ховати список підказок
+            CitySuggestions.IsVisible = false;
         }
 
 
