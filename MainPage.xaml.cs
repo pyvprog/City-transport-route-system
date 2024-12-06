@@ -385,7 +385,7 @@ namespace Kursova
 
         private void OnTapGestureRecognizerTapped(object sender, EventArgs e)
         {
-            CitySuggestions.IsVisible = false;
+            FilteredCities.Clear();
         }
 
         private void OnEntryFocused(object sender, FocusEventArgs e)
