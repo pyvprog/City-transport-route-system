@@ -162,7 +162,8 @@
                                     Placeholder="Введіть адресу відправлення"
                                     FontSize="16"
                                     BackgroundColor="White"
-                                    TextColor="Black" />
+                                    TextColor="Black"
+                                    IsEnabled="{Binding IsCitySelected}" />
                         </StackLayout>
                         <StackLayout Grid.Column="1" Padding="10">
                             <Label Text="Місце прибуття:"
@@ -173,10 +174,33 @@
                                     Placeholder="Введіть адресу прибуття"
                                     FontSize="16"
                                     BackgroundColor="White"
-                                    TextColor="Black" />
+                                    TextColor="Black"
+                                    IsEnabled="{Binding IsCitySelected}" />
                         </StackLayout>
                     </Grid>
                 </Grid>
+
+                <!-- Кнопка для додавання мітки місця відправлення -->
+                <Button Text="◉"
+                BackgroundColor="LightGray"
+                TextColor="Black"
+                WidthRequest="50"
+                HeightRequest="40"
+                CornerRadius="5"
+                Clicked="OnAddStartPointMarkerClicked"
+                AbsoluteLayout.LayoutBounds="0.01,0.047,50,40"
+                AbsoluteLayout.LayoutFlags="XProportional,YProportional" />
+
+                <!-- Кнопка для додавання мітки місця прибуття -->
+                <Button Text="◉"
+                BackgroundColor="LightGray"
+                TextColor="Black"
+                WidthRequest="50"
+                HeightRequest="40"
+                CornerRadius="5"
+                Clicked="OnAddDestinationPointMarkerClicked"
+                AbsoluteLayout.LayoutBounds="0.99,0.047,50,40"
+                AbsoluteLayout.LayoutFlags="XProportional,YProportional" />
 
                 <!-- Поле для введення міста -->
                 <StackLayout AbsoluteLayout.LayoutBounds="0.5,90,300,-1"
@@ -250,7 +274,6 @@
 
                 <!-- Карта -->
                 <WebView x:Name="MapWebView"
-                        Source="map.html"
                         AbsoluteLayout.LayoutBounds="0.5,0.93,0.98,0.67"
                         AbsoluteLayout.LayoutFlags="All" />
             </AbsoluteLayout>

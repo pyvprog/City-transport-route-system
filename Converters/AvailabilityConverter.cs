@@ -10,18 +10,15 @@ namespace Kursova.Converters
 {
     public class AvailabilityConverter : IValueConverter
     {
+        private static readonly HashSet<string> AvailableCities = new() { "Київ", "Львів", "Херсон" };
+
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is string cityName)
             {
-                // Тільки ці міста доступні
-                if (cityName == "Київ" || cityName == "Львів" || cityName == "Херсон")
-                {
-                    return false; // Місто доступне
-                }
-                return true; // Місто недоступне
+                return !AvailableCities.Contains(cityName); // Повертає true, якщо місто недоступне
             }
-            return false;
+            return true; // За замовчуванням недоступне
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

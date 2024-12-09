@@ -90,7 +90,8 @@ namespace Kursova
 
             StartClock();
             InitializeMap();
-            BindingContext = this;
+            MapWebView.Navigated += MapWebView_Navigated;
+            _ = CopyHtmlToAppDataDirectory();
         }
 
         private void StartClock()
@@ -304,15 +305,75 @@ namespace Kursova
 
         private void InitializeMap()
         {
-            MapWebView.Source = "map.html";
+            if (MapWebView != null)
+            {
+                Console.WriteLine("Initializing MapWebView...");
+                var htmlSource = new HtmlWebViewSource
+                {
+                    BaseUrl = FileSystem.AppDataDirectory,
+                    Html = File.ReadAllText(Path.Combine(FileSystem.AppDataDirectory, "map.html"))
+                };
+                MapWebView.Source = htmlSource;
+
+                MapWebView.Navigating += (s, e) =>
+                {
+                    Console.WriteLine($"Navigating to URL: {e.Url}");
+                    if (e.Url.StartsWith("js:"))
+                    {
+                        e.Cancel = true;
+                        ProcessJavaScriptMessage(e.Url);
+                    }
+                };
+
+                MapWebView.Navigated += MapWebView_Navigated;
+
+                Console.WriteLine("MapWebView successfully initialized.");
+            }
+            else
+            {
+                Console.WriteLine("MapWebView is null. Initialization skipped.");
+            }
+        }
+
+        private void ProcessJavaScriptMessage(string message)
+        {
+            Console.WriteLine($"Received JavaScript message: {message}");
+            if (message.StartsWith("js://AddManualMarker|"))
+            {
+                var parts = message.Replace("js://AddManualMarker|", "").Split('|');
+                if (parts.Length == 2)
+                {
+                    if (double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) &&
+                        double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lng))
+                    {
+                        Console.WriteLine($"Parsed coordinates: Latitude={lat}, Longitude={lng}");
+                        _ = AddManualMarker(lat.ToString(CultureInfo.InvariantCulture), lng.ToString(CultureInfo.InvariantCulture));
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("Message format not recognized.");
+            }
+        }
+
+        private async Task CopyHtmlToAppDataDirectory()
+        {
+            var sourcePath = Path.Combine(FileSystem.Current.AppDataDirectory, "map.html");
+            if (!File.Exists(sourcePath))
+            {
+                using var stream = await FileSystem.OpenAppPackageFileAsync("map.html");
+                using var destinationStream = File.Create(sourcePath);
+                await stream.CopyToAsync(destinationStream);
+            }
         }
 
         //private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
         //{
-            // Перевіряємо, чи є вибране місто
+        // Перевіряємо, чи є вибране місто
         //    if (e.CurrentSelection?.FirstOrDefault() is string selectedCity)
-         //   {
-         //       CityEntry.Text = selectedCity; // Заповнюємо поле введення обраним містом
+        //   {
+        //       CityEntry.Text = selectedCity; // Заповнюємо поле введення обраним містом
         //        CitySuggestions.IsVisible = false; // Ховаємо список підказок
         //
         //        // Викликаємо метод переміщення карти до вибраного міста
@@ -334,9 +395,22 @@ namespace Kursova
 
         public ObservableCollection<string> FilteredCities { get; set; } = new ObservableCollection<string>();
 
+        private bool _isCitySelected = false;
+
+        public bool IsCitySelected
+        {
+            get => _isCitySelected;
+            set
+            {
+                _isCitySelected = value;
+                OnPropertyChanged(nameof(IsCitySelected));
+            }
+        }
+
         private void OnCityEntryTextChanged(object sender, TextChangedEventArgs e)
         {
             string searchText = e.NewTextValue?.ToLower() ?? string.Empty;
+            Console.WriteLine($"City search text changed: {searchText}");
 
             FilteredCities.Clear();
             var filtered = _allCities.Where(c => c.ToLower().StartsWith(searchText)).ToList();
@@ -345,6 +419,7 @@ namespace Kursova
             {
                 FilteredCities.Add(city);
             }
+            Console.WriteLine($"Filtered cities count: {FilteredCities.Count}");
 
             const int itemHeight = 50;
             const int maxHeight = 300;
@@ -353,6 +428,8 @@ namespace Kursova
             AbsoluteLayout.SetLayoutBounds(CitySuggestionsParent, new Rect(0.5, 155, 300, calculatedHeight));
 
             CitySuggestions.IsVisible = FilteredCities.Count > 0;
+
+            IsCitySelected = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
         }
 
         private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
@@ -362,29 +439,48 @@ namespace Kursova
                 CityEntry.Text = selectedCity;
                 CitySuggestions.SelectedItem = null;
                 FilteredCities.Clear();
+
+                IsCitySelected = true;
+
+                Console.WriteLine($"[OnCitySelected] Selected city: {selectedCity}");
+
+                await ClearFieldsAndMarkers();
                 await MoveMapToCity(selectedCity);
             }
         }
 
-        private async void OnCityEntryCompleted(object sender, EventArgs e)
+        private async Task OnCityEntryCompleted(object sender, EventArgs e)
         {
             string? enteredCity = CityEntry?.Text?.Trim();
             if (!string.IsNullOrEmpty(enteredCity))
             {
-                await MoveMapToCity(enteredCity);
+                var coordinates = await GetCoordinatesFromAddress(enteredCity);
+                if (coordinates != null)
+                {
+                    await AddMarkerToMap(coordinates.Value.lat, coordinates.Value.lng, "startPoint");
+                }
             }
         }
 
         private async Task MoveMapToCity(string cityName)
         {
+            Console.WriteLine($"Moving map to city: {cityName}");
             if (CityCoordinates.TryGetValue(cityName, out var coordinates))
             {
-                Console.WriteLine($"MoveMapToCity called with: Latitude={coordinates.Latitude}, Longitude={coordinates.Longitude}");
-                string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
-                await MapWebView.EvaluateJavaScriptAsync(script);
+                if (MapWebView != null)
+                {
+                    string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
+                    Console.WriteLine($"Executing JavaScript to center map: {script}");
+                    await MapWebView.EvaluateJavaScriptAsync(script);
+                }
+                else
+                {
+                    Console.WriteLine("MapWebView is null. Cannot move map to city.");
+                }
             }
             else
             {
+                Console.WriteLine($"City {cityName} not found in coordinates dictionary.");
                 await DisplayAlert("Місто не знайдено", "Цього міста наразі немає в базі.", "ОК");
             }
         }
@@ -403,6 +499,300 @@ namespace Kursova
         private void OnBuildRouteClicked(object sender, EventArgs e)
         {
             DisplayAlert("Побудова маршруту", "Логіка побудови маршруту буде додана пізніше.", "OK");
+        }
+
+        private async Task AddMarkerToMap(double latitude, double longitude, string markerKey)
+        {
+            if (MapWebView == null)
+            {
+                Console.WriteLine("[AddMarkerToMap] MapWebView is null. Cannot add marker to map.");
+                return;
+            }
+
+            try
+            {
+                string script = $"addMarker({latitude.ToString(CultureInfo.InvariantCulture)}, {longitude.ToString(CultureInfo.InvariantCulture)}, '{markerKey}')";
+                Console.WriteLine($"[AddMarkerToMap] Executing JavaScript Command: {script}");
+
+                await MapWebView.EvaluateJavaScriptAsync(script);
+
+                Console.WriteLine($"[AddMarkerToMap] JavaScript executed successfully for marker {markerKey} at Latitude={latitude}, Longitude={longitude}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AddMarkerToMap] Error executing JavaScript: {ex.Message}");
+            }
+        }
+
+        private async Task AddManualMarker(string lat, string lng)
+        {
+            double latitude = double.Parse(lat, CultureInfo.InvariantCulture);
+            double longitude = double.Parse(lng, CultureInfo.InvariantCulture);
+
+            Console.WriteLine($"Adding manual marker at Latitude={latitude}, Longitude={longitude}");
+
+            string? address = await GetAddressFromCoordinates(latitude, longitude);
+            if (!string.IsNullOrEmpty(address))
+            {
+                Console.WriteLine($"Retrieved address: {address}");
+                if (string.IsNullOrEmpty(StartPointEntry.Text))
+                {
+                    StartPointEntry.Text = address;
+                }
+                else
+                {
+                    DestinationPointEntry.Text = address;
+                }
+            }
+
+            await AddMarkerToMap(latitude, longitude, "manualMarker");
+        }
+
+        private void MapWebView_Navigated(object? sender, WebNavigatedEventArgs? e)
+        {
+            if (e?.Url == null)
+            {
+                Console.WriteLine("URL is null in MapWebView_Navigated.");
+                return;
+            }
+
+            if (MapWebView != null)
+            {
+                MapWebView.Navigated -= MapWebView_Navigated;
+
+                try
+                {
+                    MapWebView.Eval("addClickMarker()");
+                    Console.WriteLine("addClickMarker() successfully invoked.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error invoking addClickMarker(): {ex.Message}");
+                }
+
+                if (e.Url.Contains("AddManualMarker"))
+                {
+                    try
+                    {
+                        var script = e.Url.Split('|');
+                        if (script.Length == 3 && script[0] == "AddManualMarker")
+                        {
+                            _ = AddManualMarker(script[1], script[2]);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error processing AddManualMarker: {ex.Message}");
+                    }
+                }
+
+                MapWebView.Navigated += MapWebView_Navigated;
+            }
+            else
+            {
+                Console.WriteLine("MapWebView is null in MapWebView_Navigated.");
+            }
+        }
+
+        private async Task<string?> GetAddressFromCoordinates(double latitude, double longitude)
+        {
+            using var client = new HttpClient();
+            string url = $"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}";
+            var response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var json = Newtonsoft.Json.Linq.JObject.Parse(content);
+                return json["display_name"]?.ToString();
+            }
+            return null;
+        }
+
+        private async Task<(double lat, double lng)?> GetCoordinatesFromAddress(string address)
+        {
+            using var client = new HttpClient();
+            string formattedAddress = Uri.EscapeDataString(address.Trim());
+            string url = $"https://nominatim.openstreetmap.org/search?q={formattedAddress}&format=json&addressdetails=1";
+
+            Console.WriteLine($"[GetCoordinatesFromAddress] Requesting coordinates for: {address}");
+            Console.WriteLine($"[GetCoordinatesFromAddress] Generated URL: {url}");
+
+            client.DefaultRequestHeaders.Add("User-Agent", "MyApp/1.0");
+
+            try
+            {
+                var response = await client.GetAsync(url);
+
+                // Логування статусу відповіді
+                Console.WriteLine($"[GetCoordinatesFromAddress] Response Status: {response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    Console.WriteLine($"[GetCoordinatesFromAddress] Response Content: {content}");
+
+                    var json = Newtonsoft.Json.Linq.JArray.Parse(content);
+
+                    if (json.Count > 0)
+                    {
+                        var firstResult = json.First;
+                        Console.WriteLine($"[GetCoordinatesFromAddress] First JSON result: {firstResult}");
+
+                        if (firstResult != null)
+                        {
+                            double lat = double.Parse(firstResult["lat"]?.ToString() ?? "0", CultureInfo.InvariantCulture);
+                            double lng = double.Parse(firstResult["lon"]?.ToString() ?? "0", CultureInfo.InvariantCulture);
+                            Console.WriteLine($"[GetCoordinatesFromAddress] Coordinates found: Latitude={lat}, Longitude={lng}");
+                            return (lat, lng);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("[GetCoordinatesFromAddress] No results found in API response.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[GetCoordinatesFromAddress] API Error: {response.StatusCode}, Reason: {response.ReasonPhrase}");
+                }
+            }
+            catch (Newtonsoft.Json.JsonException jsonEx)
+            {
+                Console.WriteLine($"[GetCoordinatesFromAddress] JSON Parsing Error: {jsonEx.Message}");
+            }
+            catch (HttpRequestException httpEx)
+            {
+                Console.WriteLine($"[GetCoordinatesFromAddress] HTTP Request Error: {httpEx.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetCoordinatesFromAddress] General Error: {ex.Message}");
+            }
+
+            Console.WriteLine($"[GetCoordinatesFromAddress] Failed to fetch coordinates for: {address}");
+            return null;
+        }
+
+        private async void OnAddStartPointMarkerClicked(object sender, EventArgs e)
+        {
+            string selectedCity = CityEntry?.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(selectedCity))
+            {
+                await DisplayAlert("Помилка", "Будь ласка, спочатку задайте місто.", "OK");
+                return;
+            }
+
+            string address = StartPointEntry?.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(address))
+            {
+                await DisplayAlert("Помилка", "Будь ласка, введіть адресу місця відправлення.", "OK");
+                return;
+            }
+
+            string[] possibleFormats = {
+            $"{selectedCity}, {address}",
+            $"{address}, {selectedCity}"
+            };
+
+            foreach (var format in possibleFormats)
+            {
+                Console.WriteLine($"[OnAddStartPointMarkerClicked] Trying format: {format}");
+                var coordinates = await GetCoordinatesFromAddress(format);
+                if (coordinates != null)
+                {
+                    Console.WriteLine($"[OnAddStartPointMarkerClicked] Coordinates found: Latitude={coordinates.Value.lat}, Longitude={coordinates.Value.lng}");
+                    await AddMarkerToMap(coordinates.Value.lat, coordinates.Value.lng, "startPoint");
+                    return;
+                }
+            }
+
+            Console.WriteLine($"[OnAddStartPointMarkerClicked] Failed to find coordinates for address: {address}, {selectedCity}");
+            await DisplayAlert("Помилка", $"Не вдалося знайти координати для адреси: {address}, {selectedCity}", "OK");
+        }
+
+        private async void OnAddDestinationPointMarkerClicked(object sender, EventArgs e)
+        {
+            string selectedCity = CityEntry?.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(selectedCity))
+            {
+                await DisplayAlert("Помилка", "Будь ласка, спочатку задайте місто.", "OK");
+                return;
+            }
+
+            string address = DestinationPointEntry?.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(address))
+            {
+                await DisplayAlert("Помилка", "Будь ласка, введіть адресу місця прибуття.", "OK");
+                return;
+            }
+
+            string[] possibleFormats = {
+            $"{selectedCity}, {address}",
+            $"{address}, {selectedCity}"
+            };
+
+            foreach (var format in possibleFormats)
+            {
+                Console.WriteLine($"[OnAddDestinationPointMarkerClicked] Trying format: {format}");
+                var coordinates = await GetCoordinatesFromAddress(format);
+                if (coordinates != null)
+                {
+                    Console.WriteLine($"[OnAddDestinationPointMarkerClicked] Coordinates found: Latitude={coordinates.Value.lat}, Longitude={coordinates.Value.lng}");
+                    await AddMarkerToMap(coordinates.Value.lat, coordinates.Value.lng, "endPoint");
+                    return;
+                }
+            }
+
+            Console.WriteLine($"[OnAddDestinationPointMarkerClicked] Failed to find coordinates for address: {address}, {selectedCity}");
+            await DisplayAlert("Помилка", $"Не вдалося знайти координати для адреси: {address}, {selectedCity}", "OK");
+        }
+
+        //private async Task ClearAllMarkers()
+        //{
+        //    if (MapWebView == null)
+        //    {
+        //        Console.WriteLine("MapWebView is null. Cannot clear markers.");
+        //        return;
+        //    }
+        //
+        //    try
+        //    {
+        //        string script = "clearAllMarkers()"; // Метод JavaScript для очищення міток
+        //        Console.WriteLine("[ClearAllMarkers] Executing JavaScript Command: clearAllMarkers()");
+        //        await MapWebView.EvaluateJavaScriptAsync(script);
+        //        Console.WriteLine("[ClearAllMarkers] All markers cleared successfully.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"[ClearAllMarkers] Error clearing markers: {ex.Message}");
+        //    }
+        //}
+
+        private async Task ClearFieldsAndMarkers()
+        {
+            StartPointEntry.Text = string.Empty;
+            DestinationPointEntry.Text = string.Empty;
+
+            if (MapWebView != null)
+            {
+                try
+                {
+                    Console.WriteLine("Clearing markers via JavaScript...");
+                    await MapWebView.EvaluateJavaScriptAsync("clearMarkers()");
+                    Console.WriteLine("Markers cleared from map.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка очищення маркерів: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("MapWebView is null, cannot clear markers.");
+            }
+
+            Console.WriteLine("Поля та маркери очищено.");
         }
 
         private void OnMapLoaded(object sender, WebNavigatedEventArgs e)

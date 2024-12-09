@@ -24,6 +24,68 @@
             console.log(`setMapCenter called with: lat=${lat}, lng=${lng}, zoom=${zoom}`);
             map.setView([lat, lng], zoom);
         }
+
+        var markers = {};
+
+        function addMarker(lat, lng, markerKey) {
+            try {
+                if (markers[markerKey]) {
+                    console.log(`Removing existing marker with key: ${markerKey}`);
+                    map.removeLayer(markers[markerKey]);
+                }
+
+                var marker = L.marker([lat, lng]).addTo(map);
+                markers[markerKey] = marker;
+
+                console.log(`Added marker: Latitude=${lat}, Longitude=${lng}, Key=${markerKey}`);
+            } catch (error) {
+                console.error(`Error adding marker: ${error.message}`);
+            }
+        }
+
+
+        function addClickMarker() {
+            map.on('click', function (e) {
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+
+                // Лог координат
+                console.log(`Координати кліку: ${lat}, ${lng}`);
+
+                if (window.external && window.external.notify) {
+                    window.external.notify(`AddManualMarker|${lat}|${lng}`);
+                } else {
+                    console.log("External notify is not available.");
+                }
+            });
+        }
+
+        //function clearAllMarkers() {
+        //    if (map && markers) {
+        //        markers.forEach(marker => {
+        //            map.removeLayer(marker);
+        //        });
+        //        markers = [];
+        //        console.log("All markers cleared.");
+        //    }
+        //}
+
+        function clearMarkers() {
+            console.log("clearMarkers function called");
+            if (Object.keys(markers).length > 0) { // Перевіряємо, чи є маркери
+                Object.values(markers).forEach(marker => {
+                    map.removeLayer(marker); // Видаляємо маркер з карти
+                });
+                markers = {}; // Очищаємо об'єкт маркерів
+                console.log("All markers cleared.");
+            } else {
+                console.log("No markers to clear.");
+            }
+        }
+
+
+        // Виклик функції для ввімкнення натискання на карту
+        addClickMarker();
     </script>
 </body>
 </html>

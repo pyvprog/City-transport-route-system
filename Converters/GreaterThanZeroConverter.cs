@@ -12,7 +12,7 @@ namespace Kursova.Converters
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (parameter is bool reverse && reverse)
+            if (parameter is string paramStr && bool.TryParse(paramStr, out var reverse) && reverse)
             {
                 return !(value is int reverseCount && reverseCount > 0);
             }
