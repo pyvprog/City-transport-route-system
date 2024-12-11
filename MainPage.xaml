@@ -274,8 +274,9 @@
 
                 <!-- Карта -->
                 <WebView x:Name="MapWebView"
-                        AbsoluteLayout.LayoutBounds="0.5,0.93,0.98,0.67"
-                        AbsoluteLayout.LayoutFlags="All" />
+                         Source="map.html"
+                         AbsoluteLayout.LayoutBounds="0.5,0.93,0.98,0.67"
+                         AbsoluteLayout.LayoutFlags="All" />
             </AbsoluteLayout>
         </Grid>
     </Grid>

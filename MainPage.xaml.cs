@@ -91,7 +91,7 @@ namespace Kursova
             StartClock();
             InitializeMap();
             MapWebView.Navigated += MapWebView_Navigated;
-            _ = CopyHtmlToAppDataDirectory();
+            //_ = CopyHtmlToAppDataDirectory();
         }
 
         private void StartClock()
@@ -307,31 +307,26 @@ namespace Kursova
         {
             if (MapWebView != null)
             {
-                Console.WriteLine("Initializing MapWebView...");
-                var htmlSource = new HtmlWebViewSource
-                {
-                    BaseUrl = FileSystem.AppDataDirectory,
-                    Html = File.ReadAllText(Path.Combine(FileSystem.AppDataDirectory, "map.html"))
-                };
-                MapWebView.Source = htmlSource;
+                Console.WriteLine("Ініціалізація MapWebView...");
 
-                MapWebView.Navigating += (s, e) =>
+                try
                 {
-                    Console.WriteLine($"Navigating to URL: {e.Url}");
-                    if (e.Url.StartsWith("js:"))
+                    var htmlSource = new HtmlWebViewSource
                     {
-                        e.Cancel = true;
-                        ProcessJavaScriptMessage(e.Url);
-                    }
-                };
+                        Html = File.ReadAllText("Resources/Raw/map.html")
+                    };
+                    MapWebView.Source = htmlSource;
 
-                MapWebView.Navigated += MapWebView_Navigated;
-
-                Console.WriteLine("MapWebView successfully initialized.");
+                    Console.WriteLine("MapWebView успішно ініціалізовано.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка ініціалізації MapWebView: {ex.Message}");
+                }
             }
             else
             {
-                Console.WriteLine("MapWebView is null. Initialization skipped.");
+                Console.WriteLine("MapWebView дорівнює null. Ініціалізація пропущена.");
             }
         }
 
@@ -357,16 +352,29 @@ namespace Kursova
             }
         }
 
-        private async Task CopyHtmlToAppDataDirectory()
-        {
-            var sourcePath = Path.Combine(FileSystem.Current.AppDataDirectory, "map.html");
-            if (!File.Exists(sourcePath))
-            {
-                using var stream = await FileSystem.OpenAppPackageFileAsync("map.html");
-                using var destinationStream = File.Create(sourcePath);
-                await stream.CopyToAsync(destinationStream);
-            }
-        }
+        //private async Task CopyHtmlToAppDataDirectory()
+        //{
+        //    var sourcePath = Path.Combine(FileSystem.Current.AppDataDirectory, "map.html");
+
+        //    try
+        //    {
+        //        if (File.Exists(sourcePath))
+        //        {
+        //            File.Delete(sourcePath);
+        //            Console.WriteLine("Старий файл map.html видалено.");
+        //        }
+
+        //        using var stream = await FileSystem.OpenAppPackageFileAsync("map.html");
+        //        using var destinationStream = File.Create(sourcePath);
+        //        await stream.CopyToAsync(destinationStream);
+        //        Console.WriteLine("Новий файл map.html успішно скопійовано.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Помилка копіювання map.html: {ex.Message}");
+        //    }
+        //}
+
 
         //private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
         //{
