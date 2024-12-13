@@ -43,40 +43,29 @@
             }
         }
 
+        //function addClickMarker() {
+        //    map.on('click', function (e) {
+        //        var lat = e.latlng.lat;
+        //        var lng = e.latlng.lng;
 
-        function addClickMarker() {
-            map.on('click', function (e) {
-                var lat = e.latlng.lat;
-                var lng = e.latlng.lng;
+        //        // Лог координат
+        //        console.log(`Координати кліку: ${lat}, ${lng}`);
 
-                // Лог координат
-                console.log(`Координати кліку: ${lat}, ${lng}`);
-
-                if (window.external && window.external.notify) {
-                    window.external.notify(`AddManualMarker|${lat}|${lng}`);
-                } else {
-                    console.log("External notify is not available.");
-                }
-            });
-        }
-
-        //function clearAllMarkers() {
-        //    if (map && markers) {
-        //        markers.forEach(marker => {
-        //            map.removeLayer(marker);
-        //        });
-        //        markers = [];
-        //        console.log("All markers cleared.");
-        //    }
+        //        if (window.external && window.external.notify) {
+        //            window.external.notify(`AddManualMarker|${lat}|${lng}`);
+        //        } else {
+        //            console.log("External notify is not available.");
+        //        }
+        //    });
         //}
 
         function clearMarkers() {
             console.log("clearMarkers function called");
-            if (Object.keys(markers).length > 0) { // Перевіряємо, чи є маркери
+            if (Object.keys(markers).length > 0) {
                 Object.values(markers).forEach(marker => {
-                    map.removeLayer(marker); // Видаляємо маркер з карти
+                    map.removeLayer(marker);
                 });
-                markers = {}; // Очищаємо об'єкт маркерів
+                markers = {};
                 console.log("All markers cleared.");
             } else {
                 console.log("No markers to clear.");

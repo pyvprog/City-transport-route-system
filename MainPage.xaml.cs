@@ -90,7 +90,7 @@ namespace Kursova
 
             StartClock();
             InitializeMap();
-            MapWebView.Navigated += MapWebView_Navigated;
+            //MapWebView.Navigated += MapWebView_Navigated;
             //_ = CopyHtmlToAppDataDirectory();
         }
 
@@ -330,27 +330,27 @@ namespace Kursova
             }
         }
 
-        private void ProcessJavaScriptMessage(string message)
-        {
-            Console.WriteLine($"Received JavaScript message: {message}");
-            if (message.StartsWith("js://AddManualMarker|"))
-            {
-                var parts = message.Replace("js://AddManualMarker|", "").Split('|');
-                if (parts.Length == 2)
-                {
-                    if (double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) &&
-                        double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lng))
-                    {
-                        Console.WriteLine($"Parsed coordinates: Latitude={lat}, Longitude={lng}");
-                        _ = AddManualMarker(lat.ToString(CultureInfo.InvariantCulture), lng.ToString(CultureInfo.InvariantCulture));
-                    }
-                }
-            }
-            else
-            {
-                Console.WriteLine("Message format not recognized.");
-            }
-        }
+        //private void ProcessJavaScriptMessage(string message)
+        //{
+        //    Console.WriteLine($"Received JavaScript message: {message}");
+        //    if (message.StartsWith("js://AddManualMarker|"))
+        //    {
+        //        var parts = message.Replace("js://AddManualMarker|", "").Split('|');
+        //        if (parts.Length == 2)
+        //        {
+        //            if (double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) &&
+        //                double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lng))
+        //            {
+        //                Console.WriteLine($"Parsed coordinates: Latitude={lat}, Longitude={lng}");
+        //                _ = AddManualMarker(lat.ToString(CultureInfo.InvariantCulture), lng.ToString(CultureInfo.InvariantCulture));
+        //            }
+        //        }
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("Message format not recognized.");
+        //    }
+        //}
 
         //private async Task CopyHtmlToAppDataDirectory()
         //{
@@ -372,20 +372,6 @@ namespace Kursova
         //    catch (Exception ex)
         //    {
         //        Console.WriteLine($"Помилка копіювання map.html: {ex.Message}");
-        //    }
-        //}
-
-
-        //private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
-        //{
-        // Перевіряємо, чи є вибране місто
-        //    if (e.CurrentSelection?.FirstOrDefault() is string selectedCity)
-        //   {
-        //       CityEntry.Text = selectedCity; // Заповнюємо поле введення обраним містом
-        //        CitySuggestions.IsVisible = false; // Ховаємо список підказок
-        //
-        //        // Викликаємо метод переміщення карти до вибраного міста
-        //        await MoveMapToCity(selectedCity);
         //    }
         //}
 
@@ -503,12 +489,6 @@ namespace Kursova
             CitySuggestions.IsVisible = false;
         }
 
-
-        private void OnBuildRouteClicked(object sender, EventArgs e)
-        {
-            DisplayAlert("Побудова маршруту", "Логіка побудови маршруту буде додана пізніше.", "OK");
-        }
-
         private async Task AddMarkerToMap(double latitude, double longitude, string markerKey)
         {
             if (MapWebView == null)
@@ -532,75 +512,75 @@ namespace Kursova
             }
         }
 
-        private async Task AddManualMarker(string lat, string lng)
-        {
-            double latitude = double.Parse(lat, CultureInfo.InvariantCulture);
-            double longitude = double.Parse(lng, CultureInfo.InvariantCulture);
+        //private async Task AddManualMarker(string lat, string lng)
+        //{
+        //    double latitude = double.Parse(lat, CultureInfo.InvariantCulture);
+        //    double longitude = double.Parse(lng, CultureInfo.InvariantCulture);
 
-            Console.WriteLine($"Adding manual marker at Latitude={latitude}, Longitude={longitude}");
+        //    Console.WriteLine($"Adding manual marker at Latitude={latitude}, Longitude={longitude}");
 
-            string? address = await GetAddressFromCoordinates(latitude, longitude);
-            if (!string.IsNullOrEmpty(address))
-            {
-                Console.WriteLine($"Retrieved address: {address}");
-                if (string.IsNullOrEmpty(StartPointEntry.Text))
-                {
-                    StartPointEntry.Text = address;
-                }
-                else
-                {
-                    DestinationPointEntry.Text = address;
-                }
-            }
+        //    string? address = await GetAddressFromCoordinates(latitude, longitude);
+        //    if (!string.IsNullOrEmpty(address))
+        //    {
+        //        Console.WriteLine($"Retrieved address: {address}");
+        //        if (string.IsNullOrEmpty(StartPointEntry.Text))
+        //        {
+        //            StartPointEntry.Text = address;
+        //        }
+        //        else
+        //        {
+        //            DestinationPointEntry.Text = address;
+        //        }
+        //    }
 
-            await AddMarkerToMap(latitude, longitude, "manualMarker");
-        }
+        //    await AddMarkerToMap(latitude, longitude, "manualMarker");
+        //}
 
-        private void MapWebView_Navigated(object? sender, WebNavigatedEventArgs? e)
-        {
-            if (e?.Url == null)
-            {
-                Console.WriteLine("URL is null in MapWebView_Navigated.");
-                return;
-            }
+        //private void MapWebView_Navigated(object? sender, WebNavigatedEventArgs? e)
+        //{
+        //    if (e?.Url == null)
+        //    {
+        //        Console.WriteLine("URL is null in MapWebView_Navigated.");
+        //        return;
+        //    }
 
-            if (MapWebView != null)
-            {
-                MapWebView.Navigated -= MapWebView_Navigated;
+        //    if (MapWebView != null)
+        //    {
+        //        MapWebView.Navigated -= MapWebView_Navigated;
 
-                try
-                {
-                    MapWebView.Eval("addClickMarker()");
-                    Console.WriteLine("addClickMarker() successfully invoked.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error invoking addClickMarker(): {ex.Message}");
-                }
+        //        try
+        //        {
+        //            MapWebView.Eval("addClickMarker()");
+        //            Console.WriteLine("addClickMarker() successfully invoked.");
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"Error invoking addClickMarker(): {ex.Message}");
+        //        }
 
-                if (e.Url.Contains("AddManualMarker"))
-                {
-                    try
-                    {
-                        var script = e.Url.Split('|');
-                        if (script.Length == 3 && script[0] == "AddManualMarker")
-                        {
-                            _ = AddManualMarker(script[1], script[2]);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error processing AddManualMarker: {ex.Message}");
-                    }
-                }
+        //        if (e.Url.Contains("AddManualMarker"))
+        //        {
+        //            try
+        //            {
+        //                var script = e.Url.Split('|');
+        //                if (script.Length == 3 && script[0] == "AddManualMarker")
+        //                {
+        //                    _ = AddManualMarker(script[1], script[2]);
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Console.WriteLine($"Error processing AddManualMarker: {ex.Message}");
+        //            }
+        //        }
 
-                MapWebView.Navigated += MapWebView_Navigated;
-            }
-            else
-            {
-                Console.WriteLine("MapWebView is null in MapWebView_Navigated.");
-            }
-        }
+        //        MapWebView.Navigated += MapWebView_Navigated;
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("MapWebView is null in MapWebView_Navigated.");
+        //    }
+        //}
 
         private async Task<string?> GetAddressFromCoordinates(double latitude, double longitude)
         {
@@ -756,27 +736,6 @@ namespace Kursova
             await DisplayAlert("Помилка", $"Не вдалося знайти координати для адреси: {address}, {selectedCity}", "OK");
         }
 
-        //private async Task ClearAllMarkers()
-        //{
-        //    if (MapWebView == null)
-        //    {
-        //        Console.WriteLine("MapWebView is null. Cannot clear markers.");
-        //        return;
-        //    }
-        //
-        //    try
-        //    {
-        //        string script = "clearAllMarkers()"; // Метод JavaScript для очищення міток
-        //        Console.WriteLine("[ClearAllMarkers] Executing JavaScript Command: clearAllMarkers()");
-        //        await MapWebView.EvaluateJavaScriptAsync(script);
-        //        Console.WriteLine("[ClearAllMarkers] All markers cleared successfully.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"[ClearAllMarkers] Error clearing markers: {ex.Message}");
-        //    }
-        //}
-
         private async Task ClearFieldsAndMarkers()
         {
             StartPointEntry.Text = string.Empty;
@@ -801,6 +760,11 @@ namespace Kursova
             }
 
             Console.WriteLine("Поля та маркери очищено.");
+        }
+
+        private void OnBuildRouteClicked(object sender, EventArgs e)
+        {
+            DisplayAlert("Побудова маршруту", "Логіка побудови маршруту буде додана пізніше.", "OK");
         }
 
         private void OnMapLoaded(object sender, WebNavigatedEventArgs e)
