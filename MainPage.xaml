@@ -14,14 +14,14 @@
     </ContentPage.Resources>
 
     <Grid>
-        <!-- Фонова картинка -->
-        <Image Source="background.png"
-               Aspect="AspectFill"
-               HorizontalOptions="FillAndExpand"
-               VerticalOptions="FillAndExpand" />
-
         <!-- Основний контент -->
-        <Grid x:Name="InitialInterface" Padding="20">
+        <Grid x:Name="InitialInterface">
+
+            <!-- Фонова картинка -->
+            <Image Source="background.png"
+                   Aspect="AspectFill"
+                   HorizontalOptions="FillAndExpand"
+                   VerticalOptions="FillAndExpand" />
 
             <!-- Напис SIMPLE WAY -->
             <Grid HorizontalOptions="Center"
@@ -63,7 +63,18 @@
                 </Button.Triggers>
             </Button>
 
-
+            <!-- Кнопка адміністратора (шестерня) -->
+            <Button x:Name="AdminButton"
+                    Text="⚙"
+                    FontSize="24"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    HorizontalOptions="Center"
+                    VerticalOptions="End"
+                    WidthRequest="70"
+                    HeightRequest="50"
+                    Clicked="OnAdminButtonClicked" 
+                    IsVisible="True" />
 
 
             <!-- Блок новин -->
@@ -134,6 +145,123 @@
                            VerticalOptions="Center" />
                 </StackLayout>
             </Frame>
+
+        </Grid>
+
+        <!-- Вікно авторизації адміністратора -->
+        <Grid x:Name="AdminLoginPopup" IsVisible="False" BackgroundColor="#80000000">
+            <Frame BackgroundColor="White" CornerRadius="10" Padding="20" HorizontalOptions="Center" VerticalOptions="Center" WidthRequest="300">
+                <StackLayout>
+                    <Label Text="Вхід для адміністратора" FontAttributes="Bold" FontSize="18" HorizontalOptions="Center" />
+                    <Entry x:Name="AdminLoginEntry" Placeholder="Логін" TextColor="Black"/>
+                    <Entry x:Name="AdminPasswordEntry" Placeholder="Пароль" IsPassword="True" TextColor="Black"/>
+                    <Button Text="Увійти" Clicked="OnAdminLoginClicked" BackgroundColor="LightGray" TextColor="Black" />
+                    <Button Text="Скасувати" Clicked="OnAdminCancelClicked" BackgroundColor="Transparent" TextColor="Black" />
+                </StackLayout>
+            </Frame>
+        </Grid>
+
+        <Grid x:Name="AdminInterface" IsVisible="False" Padding="20">
+            <!-- Заголовок -->
+            <Label Text="Список маршрутів" 
+           FontSize="24" 
+           FontAttributes="Bold" 
+           HorizontalOptions="Start" 
+           VerticalOptions="Start" />
+
+            <StackLayout HorizontalOptions="Center" VerticalOptions="Start" Margin="10">
+                <Label Text="Оберіть місто:" HorizontalOptions="Center" />
+                <Picker x:Name="CityPicker"
+                        Title="Натисніть щоб обрати місто"
+                        SelectedIndexChanged="OnCityFilterChanged">
+                    <Picker.ItemsSource>
+                        <x:Array Type="{x:Type x:String}">
+                            <x:String>Всі</x:String>
+                            <x:String>Київ</x:String>
+                            <x:String>Львів</x:String>
+                            <x:String>Херсон</x:String>
+                        </x:Array>
+                    </Picker.ItemsSource>
+                </Picker>
+            </StackLayout>
+
+            <!-- Таблиця маршрутів -->
+            <CollectionView x:Name="RoutesCollectionView"
+                    ItemsSource="{Binding DisplayedRoutes}"
+                    SelectionMode="Single"
+                    VerticalOptions="FillAndExpand"
+                    HorizontalOptions="Start"
+                    Margin="1"
+                    WidthRequest="500"
+                    BackgroundColor="Transparent">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="*,Auto,Auto" Padding="5">
+                            <!-- Назва міста -->
+                            <Label Text="{Binding CityName}" 
+                           FontSize="14" 
+                           VerticalOptions="Center" 
+                           TextColor="Gray" />
+
+                            <!-- Номер маршруту -->
+                            <Label Text="{Binding RouteNumber}" 
+                           FontSize="14" 
+                           VerticalOptions="Center" 
+                           Grid.Column="1" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Поля для введення інформації про маршрут -->
+            <StackLayout Orientation="Vertical" HorizontalOptions="End" VerticalOptions="FillAndExpand" Margin="10" WidthRequest="300">
+                <Entry x:Name="CityNameEntry" Placeholder="Назва міста" />
+                <Entry x:Name="RouteNumberEntry" Placeholder="Номер маршруту" />
+                <Entry x:Name="DescriptionEntry" Placeholder="Опис маршруту" />
+                <Entry x:Name="DetailsEntry" Placeholder="Деталі маршруту" />
+                <Entry x:Name="RouteLengthEntry" Placeholder="Довжина маршруту (км)" Keyboard="Numeric" />
+                <Entry x:Name="StopCountEntry" Placeholder="Кількість зупинок" Keyboard="Numeric" />
+                <Entry x:Name="VehicleCountEntry" Placeholder="Кількість транспорту" Keyboard="Numeric" />
+                <Entry x:Name="IntervalEntry" Placeholder="Інтервал транспорту" />
+                <Entry x:Name="TransportTypeEntry" Placeholder="Тип транспорту" />
+                <Button Text="Додати/Оновити маршрут"
+                        Clicked="OnAddOrUpdateRouteClicked"
+                        BackgroundColor="LightGray"
+                        Margin="10" />
+                <Button Text="Редагувати"
+                        Clicked="OnEditRouteClicked"
+                        BackgroundColor="LightGray"
+                        Margin="10" />
+                <Button Text="Видалити"
+                        Clicked="OnDeleteRouteClicked"
+                        BackgroundColor="Red"
+                        Margin="10" />
+            </StackLayout>
+
+            <StackLayout Orientation="Horizontal" HorizontalOptions="Center" VerticalOptions="End" Margin="10">
+                <Button Text="Зберегти зміни"
+                        x:Name="SaveChangesButton"
+                        Clicked="OnSaveChangesClicked"
+                        IsEnabled="False"
+                        BackgroundColor="LightGray"
+                        TextColor="Black"
+                        Margin="10"
+                        WidthRequest="150" />
+                <Button Text="Вийти з режиму адміністратора"
+                        x:Name="ExitAdminModeButton"
+                        Clicked="OnExitAdminModeClicked"
+                        BackgroundColor="Red"
+                        TextColor="White"
+                        Margin="10"
+                        WidthRequest="240" />
+                <Button Text="Скидання змін"
+                        x:Name="ResetChangesButton"
+                        Clicked="OnResetChangesClicked"
+                        BackgroundColor="LightGray"
+                        TextColor="Black"
+                        Margin="10"
+                        WidthRequest="170" />
+            </StackLayout>
 
         </Grid>
 

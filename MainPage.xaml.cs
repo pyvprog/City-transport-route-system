@@ -12,6 +12,7 @@ using Microsoft.Maui.Platform;
 using System;
 using System.Globalization;
 using System.Windows.Input;
+using Newtonsoft.Json;
 
 namespace Kursova
 {
@@ -25,10 +26,14 @@ namespace Kursova
     public partial class MainPage : ContentPage, INotifyPropertyChanged
     {
         private ObservableCollection<NewsItem> _newsHeadlines = new ObservableCollection<NewsItem>();
+        public ObservableCollection<RouteInfo> DisplayedRoutes { get; set; } = new ObservableCollection<RouteInfo>();
+        private Dictionary<string, List<RouteInfo>> Routes = new();
         private int _currentNewsIndex = 0;
         private string _currentTime = string.Empty;
         private NewsItem _currentNews = new NewsItem();
         private bool _isOnline = true;
+
+        private bool _isAdminLoggedIn = false;
 
         public ObservableCollection<NewsItem> NewsHeadlines
         {
@@ -92,6 +97,21 @@ namespace Kursova
             InitializeMap();
             //MapWebView.Navigated += MapWebView_Navigated;
             //_ = CopyHtmlToAppDataDirectory();
+            CityPicker.ItemsSource = new List<string> { "Всі", "Київ", "Львів", "Херсон" };
+            CityPicker.SelectedItem = "Всі"; // Встановлюємо значення за замовчуванням
+        }
+
+        public bool IsAdminLoggedIn
+        {
+            get => _isAdminLoggedIn;
+            set
+            {
+                if (_isAdminLoggedIn != value)
+                {
+                    _isAdminLoggedIn = value;
+                    OnPropertyChanged(nameof(IsAdminLoggedIn));
+                }
+            }
         }
 
         private void StartClock()
@@ -303,31 +323,403 @@ namespace Kursova
             MapInterface.IsVisible = true;
         }
 
-        private void InitializeMap()
+        private void OnAdminButtonClicked(object sender, EventArgs e)
         {
-            if (MapWebView != null)
+            AdminLoginPopup.IsVisible = true;
+        }
+
+        private void OnAdminLoginClicked(object sender, EventArgs e)
+        {
+            string login = AdminLoginEntry.Text?.Trim() ?? string.Empty;
+            string password = AdminPasswordEntry.Text?.Trim() ?? string.Empty;
+
+            if (login == "developer" && password == "Programmer773")
             {
-                Console.WriteLine("Ініціалізація MapWebView...");
+                IsAdminLoggedIn = true;
+                AdminLoginPopup.IsVisible = false;
 
-                try
+                // Завантаження маршрутів
+                string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                Routes = RouteService.LoadRoutes(filePath);
+
+                // Оновлення списку маршрутів для обраного міста (наприклад, Київ)
+                ShowAdminInterface();
+
+                DisplayAlert("Успіх", "Вхід виконано успішно!", "OK");
+            }
+            else
+            {
+                DisplayAlert("Помилка", "Невірний логін або пароль!", "OK");
+            }
+        }
+
+        private void ShowAdminInterface()
+        {
+            InitialInterface.IsVisible = false;
+            AdminInterface.IsVisible = true;
+
+            DisplayedRoutes.Clear();
+
+            foreach (var city in Routes.Keys)
+            {
+                foreach (var route in Routes[city])
                 {
-                    var htmlSource = new HtmlWebViewSource
-                    {
-                        Html = File.ReadAllText("Resources/Raw/map.html")
-                    };
-                    MapWebView.Source = htmlSource;
-
-                    Console.WriteLine("MapWebView успішно ініціалізовано.");
+                    route.CityName = city;
+                    DisplayedRoutes.Add(route);
                 }
-                catch (Exception ex)
+            }
+
+            RoutesCollectionView.ItemsSource = DisplayedRoutes;
+        }
+
+
+        private void OnAdminCancelClicked(object sender, EventArgs e)
+        {
+            AdminLoginPopup.IsVisible = false;
+            AdminLoginEntry.Text = string.Empty;
+            AdminPasswordEntry.Text = string.Empty;
+        }
+
+        public class RouteInfo
+        {
+            public string CityName { get; set; } = string.Empty; // Назва міста
+            public string RouteNumber { get; set; } = string.Empty; // Номер маршруту
+            public string Description { get; set; } = string.Empty; // Опис маршруту
+            public string Details { get; set; } = string.Empty; // Додаткові деталі
+            public double RouteLength { get; set; } // Довжина маршруту (км)
+            public int StopCount { get; set; } // Кількість зупинок
+            public int VehicleCount { get; set; } // Кількість транспорту на маршруті
+            public string Interval { get; set; } = string.Empty; // Інтервал транспорту
+            public string TransportType { get; set; } = string.Empty; // Тип транспорту
+            public List<(string StopName, double Latitude, double Longitude)> Stops { get; set; } = new();
+        }
+
+
+        public static class RouteService
+        {
+            public static Dictionary<string, List<RouteInfo>> LoadRoutes(string filePath)
+            {
+                if (!File.Exists(filePath))
                 {
-                    Console.WriteLine($"Помилка ініціалізації MapWebView: {ex.Message}");
+                    File.WriteAllText(filePath, "{}");
+                }
+
+                var json = File.ReadAllText(filePath);
+                return JsonConvert.DeserializeObject<Dictionary<string, List<RouteInfo>>>(json)
+                       ?? new Dictionary<string, List<RouteInfo>>();
+            }
+
+            public static void SaveRoutes(Dictionary<string, List<RouteInfo>> routes, string filePath)
+            {
+                var json = JsonConvert.SerializeObject(routes, Formatting.Indented);
+                File.WriteAllText(filePath, json);
+            }
+        }
+
+        private void OnRouteSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.CurrentSelection.FirstOrDefault() is RouteInfo selectedRoute)
+            {
+                DisplayAlert("Маршрут вибрано", $"Вибраний маршрут: {selectedRoute.Description}", "OK");
+            }
+            else
+            {
+                DisplayAlert("Помилка", "Будь ласка, виберіть маршрут.", "OK");
+            }
+        }
+
+        private void OnAddRouteClicked(object sender, EventArgs e)
+        {
+            // Отримуємо вибране місто
+            string selectedCity = CityEntry?.Text?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrEmpty(selectedCity))
+            {
+                DisplayAlert("Помилка", "Будь ласка, оберіть місто для додавання маршруту.", "OK");
+                return;
+            }
+
+            // Новий маршрут
+            var newRoute = new RouteInfo
+            {
+                RouteNumber = "Новий номер",
+                Description = "Новий опис",
+                Details = "Деталі маршруту",
+                RouteLength = 0,
+                StopCount = 0,
+                VehicleCount = 0,
+                Interval = "0 хв",
+                TransportType = "Тип транспорту",
+                Stops = new List<(string StopName, double Latitude, double Longitude)>()
+            };
+
+            // Додавання маршруту до вибраного міста
+            if (Routes.ContainsKey(selectedCity))
+            {
+                Routes[selectedCity].Add(newRoute);
+            }
+            else
+            {
+                Routes[selectedCity] = new List<RouteInfo> { newRoute };
+            }
+
+            // Оновлення списку відображення
+            if (DisplayedRoutes != null && selectedCity == CurrentSelectedCity)
+            {
+                DisplayedRoutes.Add(newRoute);
+            }
+
+            // Активуємо кнопку "Зберегти зміни"
+            SaveChangesButton.IsEnabled = true;
+
+            DisplayAlert("Успіх", $"Маршрут додано до міста: {selectedCity}.", "OK");
+        }
+
+        private void OnEditRouteClicked(object sender, EventArgs e)
+        {
+            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute)
+            {
+                DisplayAlert("Помилка", "Будь ласка, оберіть маршрут для редагування.", "OK");
+                return;
+            }
+
+            // Заповнюємо поля введення даними обраного маршруту
+            CityNameEntry.Text = selectedRoute.CityName;
+            RouteNumberEntry.Text = selectedRoute.RouteNumber;
+            DescriptionEntry.Text = selectedRoute.Description;
+            DetailsEntry.Text = selectedRoute.Details;
+            RouteLengthEntry.Text = selectedRoute.RouteLength.ToString();
+            StopCountEntry.Text = selectedRoute.StopCount.ToString();
+            VehicleCountEntry.Text = selectedRoute.VehicleCount.ToString();
+            IntervalEntry.Text = selectedRoute.Interval;
+            TransportTypeEntry.Text = selectedRoute.TransportType;
+
+            // Активуємо кнопку "Зберегти зміни"
+            SaveChangesButton.IsEnabled = true;
+        }
+
+
+        private void OnDeleteRouteClicked(object sender, EventArgs e)
+        {
+            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute || selectedRoute == null)
+            {
+                DisplayAlert("Помилка", "Будь ласка, оберіть маршрут для видалення.", "OK");
+                return;
+            }
+
+            if (Routes.ContainsKey(selectedRoute.CityName))
+            {
+                Routes[selectedRoute.CityName].Remove(selectedRoute);
+
+                if (!Routes[selectedRoute.CityName].Any())
+                {
+                    Routes.Remove(selectedRoute.CityName);
+                }
+
+                string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                RouteService.SaveRoutes(Routes, filePath);
+
+                // Оновлення списку маршрутів
+                OnCityFilterChanged(this, EventArgs.Empty);
+
+                SaveChangesButton.IsEnabled = true;
+
+                DisplayAlert("Успіх", "Маршрут видалено.", "OK");
+            }
+        }
+
+        private void OnExitAdminModeClicked(object sender, EventArgs e)
+        {
+            AdminInterface.IsVisible = false;
+            InitialInterface.IsVisible = true;
+            IsAdminLoggedIn = false;
+
+            AdminLoginEntry.Text = string.Empty;
+            AdminPasswordEntry.Text = string.Empty;
+        }
+
+        private void OnCityFilterChanged(object? sender, EventArgs e)
+        {
+            // Перевірка та встановлення значення за замовчуванням
+            if (CityPicker.SelectedItem == null)
+            {
+                CityPicker.SelectedItem = "Всі";
+            }
+
+            // Гарантія, що значення SelectedItem ніколи не буде null
+            if (CityPicker.SelectedItem is string selectedCity && !string.IsNullOrWhiteSpace(selectedCity))
+            {
+                CurrentSelectedCity = selectedCity;
+
+                DisplayedRoutes.Clear();
+
+                if (selectedCity == "Всі")
+                {
+                    foreach (var city in Routes.Keys)
+                    {
+                        foreach (var route in Routes[city])
+                        {
+                            DisplayedRoutes.Add(route);
+                        }
+                    }
+                }
+                else
+                {
+                    if (Routes.ContainsKey(selectedCity))
+                    {
+                        foreach (var route in Routes[selectedCity])
+                        {
+                            DisplayedRoutes.Add(route);
+                        }
+                    }
                 }
             }
             else
             {
-                Console.WriteLine("MapWebView дорівнює null. Ініціалізація пропущена.");
+                // Якщо значення все одно відсутнє, встановлюємо "Всі"
+                CurrentSelectedCity = "Всі";
             }
+        }
+
+        private void OnAddOrUpdateRouteClicked(object sender, EventArgs e)
+        {
+            // Перевірка, чи всі поля заповнені
+            if (string.IsNullOrWhiteSpace(CityNameEntry.Text) ||
+                string.IsNullOrWhiteSpace(RouteNumberEntry.Text) ||
+                string.IsNullOrWhiteSpace(DescriptionEntry.Text) ||
+                string.IsNullOrWhiteSpace(DetailsEntry.Text) ||
+                string.IsNullOrWhiteSpace(RouteLengthEntry.Text) ||
+                string.IsNullOrWhiteSpace(StopCountEntry.Text) ||
+                string.IsNullOrWhiteSpace(VehicleCountEntry.Text) ||
+                string.IsNullOrWhiteSpace(IntervalEntry.Text) ||
+                string.IsNullOrWhiteSpace(TransportTypeEntry.Text))
+            {
+                DisplayAlert("Помилка", "Будь ласка, заповніть усі поля.", "OK");
+                return;
+            }
+
+            // Отримуємо введені дані
+            var cityName = CityNameEntry.Text.Trim();
+            var routeNumber = RouteNumberEntry.Text.Trim();
+
+            if (!double.TryParse(RouteLengthEntry.Text.Trim(), out double routeLength) ||
+                !int.TryParse(StopCountEntry.Text.Trim(), out int stopCount) ||
+                !int.TryParse(VehicleCountEntry.Text.Trim(), out int vehicleCount))
+            {
+                DisplayAlert("Помилка", "Перевірте числові поля (довжина маршруту, кількість зупинок, кількість транспорту).", "OK");
+                return;
+            }
+
+            var newRoute = new RouteInfo
+            {
+                CityName = cityName,
+                RouteNumber = routeNumber,
+                Description = DescriptionEntry.Text.Trim(),
+                Details = DetailsEntry.Text.Trim(),
+                RouteLength = routeLength,
+                StopCount = stopCount,
+                VehicleCount = vehicleCount,
+                Interval = IntervalEntry.Text.Trim(),
+                TransportType = TransportTypeEntry.Text.Trim()
+            };
+
+            // Додавання чи оновлення маршруту
+            if (Routes.ContainsKey(cityName))
+            {
+                var existingRoute = Routes[cityName].FirstOrDefault(r => r.RouteNumber == routeNumber);
+                if (existingRoute != null)
+                {
+                    // Оновлення існуючого маршруту
+                    Routes[cityName].Remove(existingRoute);
+                    Routes[cityName].Add(newRoute);
+                }
+                else
+                {
+                    // Додавання нового маршруту
+                    Routes[cityName].Add(newRoute);
+                }
+            }
+            else
+            {
+                // Якщо міста ще немає у списку
+                Routes[cityName] = new List<RouteInfo> { newRoute };
+            }
+
+            // Збереження в файл
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            RouteService.SaveRoutes(Routes, filePath);
+
+            // Оновлення списку маршрутів
+            OnCityFilterChanged(this, EventArgs.Empty);
+
+            DisplayAlert("Успіх", "Маршрут успішно додано або оновлено!", "OK");
+            ClearInputFields();
+        }
+
+        private void ClearInputFields()
+        {
+            CityNameEntry.Text = string.Empty;
+            RouteNumberEntry.Text = string.Empty;
+            DescriptionEntry.Text = string.Empty;
+            DetailsEntry.Text = string.Empty;
+            RouteLengthEntry.Text = string.Empty;
+            StopCountEntry.Text = string.Empty;
+            VehicleCountEntry.Text = string.Empty;
+            IntervalEntry.Text = string.Empty;
+            TransportTypeEntry.Text = string.Empty;
+
+            RoutesCollectionView.SelectedItem = null;
+        }
+
+        private void OnCityFilterUpdated(string selectedCity)
+        {
+            DisplayedRoutes.Clear();
+
+            if (selectedCity == "Всі")
+            {
+                foreach (var city in Routes.Keys)
+                {
+                    foreach (var route in Routes[city])
+                    {
+                        DisplayedRoutes.Add(route);
+                    }
+                }
+            }
+            else
+            {
+                if (Routes.ContainsKey(selectedCity))
+                {
+                    foreach (var route in Routes[selectedCity])
+                    {
+                        DisplayedRoutes.Add(route);
+                    }
+                }
+            }
+        }
+
+        private void OnSaveChangesClicked(object sender, EventArgs e)
+        {
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+
+            RouteService.SaveRoutes(Routes, filePath);
+
+            DisplayAlert("Збережено", "Зміни успішно збережені.", "OK");
+
+            SaveChangesButton.IsEnabled = false;
+        }
+
+        private void OnResetChangesClicked(object sender, EventArgs e)
+        {
+            ClearInputFields();
+
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            Routes = RouteService.LoadRoutes(filePath);
+
+            OnCityFilterChanged(this, EventArgs.Empty);
+
+            SaveChangesButton.IsEnabled = false;
+
+            DisplayAlert("Скинуто", "Всі незбережені зміни скасовані.", "OK");
         }
 
         //private void ProcessJavaScriptMessage(string message)
@@ -374,6 +766,33 @@ namespace Kursova
         //        Console.WriteLine($"Помилка копіювання map.html: {ex.Message}");
         //    }
         //}
+
+        private void InitializeMap()
+        {
+            if (MapWebView != null)
+            {
+                Console.WriteLine("Ініціалізація MapWebView...");
+
+                try
+                {
+                    var htmlSource = new HtmlWebViewSource
+                    {
+                        Html = File.ReadAllText("Resources/Raw/map.html")
+                    };
+                    MapWebView.Source = htmlSource;
+
+                    Console.WriteLine("MapWebView успішно ініціалізовано.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка ініціалізації MapWebView: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("MapWebView дорівнює null. Ініціалізація пропущена.");
+            }
+        }
 
         private Dictionary<string, (double Latitude, double Longitude)> CityCoordinates = new()
         {
@@ -426,10 +845,13 @@ namespace Kursova
             IsCitySelected = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
         }
 
+        private string? CurrentSelectedCity = "Київ";
+
         private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
         {
             if (e.CurrentSelection.FirstOrDefault() is string selectedCity)
             {
+                // Оновлення вибраного міста
                 CityEntry.Text = selectedCity;
                 CitySuggestions.SelectedItem = null;
                 FilteredCities.Clear();
@@ -440,8 +862,21 @@ namespace Kursova
 
                 await ClearFieldsAndMarkers();
                 await MoveMapToCity(selectedCity);
+
+                DisplayedRoutes.Clear();
+
+                if (Routes.ContainsKey(selectedCity))
+                {
+                    foreach (var route in Routes[selectedCity])
+                    {
+                        DisplayedRoutes.Add(route);
+                    }
+                }
+
+                Console.WriteLine($"[OnCitySelected] Updated routes for city: {selectedCity}");
             }
         }
+
 
         private async Task OnCityEntryCompleted(object sender, EventArgs e)
         {
