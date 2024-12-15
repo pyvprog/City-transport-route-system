@@ -162,18 +162,66 @@
         </Grid>
 
         <Grid x:Name="AdminInterface" IsVisible="False" Padding="20">
-            <!-- Заголовок -->
-            <Label Text="Список маршрутів" 
+            <StackLayout Orientation="Vertical"
+             HorizontalOptions="StartAndExpand"
+             VerticalOptions="FillAndExpand"
+             Margin="0,10,0,10"
+             Spacing="10"
+             WidthRequest="500">
+                <!-- Напис над списком -->
+                <Label Text="Список маршрутів" 
            FontSize="24" 
            FontAttributes="Bold" 
            HorizontalOptions="Start" 
            VerticalOptions="Start" />
 
-            <StackLayout HorizontalOptions="Center" VerticalOptions="Start" Margin="10">
-                <Label Text="Оберіть місто:" HorizontalOptions="Center" />
+                <!-- Таблиця маршрутів -->
+                <CollectionView x:Name="RoutesCollectionView"
+                                ItemsSource="{Binding DisplayedRoutes}"
+                                SelectionMode="Single"
+                                VerticalOptions="FillAndExpand"
+                                HorizontalOptions="FillAndExpand"
+                                Margin="0,10,0,0"
+                                BackgroundColor="Transparent">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Padding="5">
+                                <!-- Опис маршруту -->
+                                <Label Text="{Binding Description}" 
+                                        FontSize="16" 
+                                        VerticalOptions="Center" 
+                                        Grid.Column="0" />
+                                <!-- Тип транспорту -->
+                                <Label Text="{Binding TransportType}" 
+                                        FontSize="14" 
+                                        VerticalOptions="Center" 
+                                        Grid.Column="1" />
+                                <Label Text="" Grid.Column="2" />
+                                <!-- Назва міста -->
+                                <Label Text="{Binding CityName}" 
+                                        FontSize="14" 
+                                        VerticalOptions="Center" 
+                                        Grid.Column="3" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </StackLayout>
+
+            <!-- Фільтр за містом -->
+            <StackLayout Orientation="Vertical"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Start"
+                        Margin="150,10,0,10">
+                <Label Text="Оберіть місто:" 
+                       FontSize="16" 
+                       FontAttributes="Bold" 
+                       HorizontalOptions="Center" />
                 <Picker x:Name="CityPicker"
                         Title="Натисніть щоб обрати місто"
-                        SelectedIndexChanged="OnCityFilterChanged">
+                        SelectedIndexChanged="OnCityFilterChanged"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Start">
                     <Picker.ItemsSource>
                         <x:Array Type="{x:Type x:String}">
                             <x:String>Всі</x:String>
@@ -184,34 +232,6 @@
                     </Picker.ItemsSource>
                 </Picker>
             </StackLayout>
-
-            <!-- Таблиця маршрутів -->
-            <CollectionView x:Name="RoutesCollectionView"
-                    ItemsSource="{Binding DisplayedRoutes}"
-                    SelectionMode="Single"
-                    VerticalOptions="FillAndExpand"
-                    HorizontalOptions="Start"
-                    Margin="1"
-                    WidthRequest="500"
-                    BackgroundColor="Transparent">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid ColumnDefinitions="*,Auto,Auto" Padding="5">
-                            <!-- Назва міста -->
-                            <Label Text="{Binding CityName}" 
-                           FontSize="14" 
-                           VerticalOptions="Center" 
-                           TextColor="Gray" />
-
-                            <!-- Номер маршруту -->
-                            <Label Text="{Binding RouteNumber}" 
-                           FontSize="14" 
-                           VerticalOptions="Center" 
-                           Grid.Column="1" />
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
 
             <!-- Поля для введення інформації про маршрут -->
             <StackLayout Orientation="Vertical" HorizontalOptions="End" VerticalOptions="FillAndExpand" Margin="10" WidthRequest="300">
@@ -224,43 +244,48 @@
                 <Entry x:Name="VehicleCountEntry" Placeholder="Кількість транспорту" Keyboard="Numeric" />
                 <Entry x:Name="IntervalEntry" Placeholder="Інтервал транспорту" />
                 <Entry x:Name="TransportTypeEntry" Placeholder="Тип транспорту" />
+                <Picker x:Name="StopPicker" Title="Оберіть зупинку" />
+                <Entry x:Name="LatitudeEntry" Placeholder="Широта" Keyboard="Numeric" />
+                <Entry x:Name="LongitudeEntry" Placeholder="Довгота" Keyboard="Numeric" />
+                <Button Text="Зберегти координати" Clicked="OnSaveCoordinatesClicked" />
                 <Button Text="Додати/Оновити маршрут"
-                        Clicked="OnAddOrUpdateRouteClicked"
-                        BackgroundColor="LightGray"
-                        Margin="10" />
+                Clicked="OnAddOrUpdateRouteClicked"
+                BackgroundColor="LightGray"
+                Margin="10" />
                 <Button Text="Редагувати"
-                        Clicked="OnEditRouteClicked"
-                        BackgroundColor="LightGray"
-                        Margin="10" />
+                Clicked="OnEditRouteClicked"
+                BackgroundColor="LightGray"
+                Margin="10" />
                 <Button Text="Видалити"
-                        Clicked="OnDeleteRouteClicked"
-                        BackgroundColor="Red"
-                        Margin="10" />
+                Clicked="OnDeleteRouteClicked"
+                BackgroundColor="Red"
+                Margin="10" />
             </StackLayout>
 
+            <!-- Кнопки управління -->
             <StackLayout Orientation="Horizontal" HorizontalOptions="Center" VerticalOptions="End" Margin="10">
-                <Button Text="Зберегти зміни"
-                        x:Name="SaveChangesButton"
-                        Clicked="OnSaveChangesClicked"
-                        IsEnabled="False"
-                        BackgroundColor="LightGray"
-                        TextColor="Black"
-                        Margin="10"
-                        WidthRequest="150" />
+                <!--Button Text="Зберегти зміни"
+                x:Name="SaveChangesButton"
+                Clicked="OnSaveChangesClicked"
+                IsEnabled="False"
+                BackgroundColor="LightGray"
+                TextColor="Black"
+                Margin="10"
+                WidthRequest="150" -->
                 <Button Text="Вийти з режиму адміністратора"
-                        x:Name="ExitAdminModeButton"
-                        Clicked="OnExitAdminModeClicked"
-                        BackgroundColor="Red"
-                        TextColor="White"
-                        Margin="10"
-                        WidthRequest="240" />
+                x:Name="ExitAdminModeButton"
+                Clicked="OnExitAdminModeClicked"
+                BackgroundColor="Red"
+                TextColor="White"
+                Margin="10"
+                WidthRequest="250" />
                 <Button Text="Скидання змін"
-                        x:Name="ResetChangesButton"
-                        Clicked="OnResetChangesClicked"
-                        BackgroundColor="LightGray"
-                        TextColor="Black"
-                        Margin="10"
-                        WidthRequest="170" />
+                x:Name="ResetChangesButton"
+                Clicked="OnResetChangesClicked"
+                BackgroundColor="LightGray"
+                TextColor="Black"
+                Margin="10"
+                WidthRequest="170" />
             </StackLayout>
 
         </Grid>
