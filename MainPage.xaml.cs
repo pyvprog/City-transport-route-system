@@ -728,6 +728,7 @@ namespace Kursova
             {
                 DisplayAlert("Помилка", "Маршрут не знайдено у файлі.", "OK");
             }
+            ClearInputFields();
         }
 
         private void OnExitAdminModeClicked(object sender, EventArgs e)
@@ -782,9 +783,11 @@ namespace Kursova
             }
         }
 
+        private readonly List<string> ValidCities = new List<string> { "Київ", "Львів", "Херсон" };
+        private readonly List<string> ValidTransportTypes = new List<string> { "автобус", "трамвай", "тролейбус" };
+
         private void OnAddOrUpdateRouteClicked(object sender, EventArgs e)
         {
-            // Перевірка, чи заповнені основні поля маршруту
             if (string.IsNullOrWhiteSpace(CityNameEntry.Text) ||
                 string.IsNullOrWhiteSpace(RouteNumberEntry.Text) ||
                 string.IsNullOrWhiteSpace(DescriptionEntry.Text) ||
@@ -799,70 +802,108 @@ namespace Kursova
                 return;
             }
 
-            // Збір даних з полів введення
             var cityName = CityNameEntry.Text.Trim();
-            var routeNumber = RouteNumberEntry.Text.Trim();
+            var transportType = TransportTypeEntry.Text.Trim().ToLower();
+            var errors = new List<string>();
 
-            if (!double.TryParse(RouteLengthEntry.Text.Trim(), out double routeLength) ||
-                !int.TryParse(StopCountEntry.Text.Trim(), out int stopCount) ||
-                !int.TryParse(VehicleCountEntry.Text.Trim(), out int vehicleCount))
+            if (!ValidCities.Contains(cityName))
             {
-                DisplayAlert("Помилка", "Перевірте числові поля (довжина маршруту, кількість зупинок, кількість транспорту).", "OK");
+                errors.Add($"Місто '{cityName}' немає в базі.");
+            }
+
+            if (!ValidTransportTypes.Contains(transportType))
+            {
+                errors.Add($"Тип транспорту '{transportType}' не підтримується. Доступні варіанти: автобус, трамвай, тролейбус.");
+            }
+
+            if (!double.TryParse(RouteLengthEntry.Text.Trim(), out double routeLength))
+            {
+                errors.Add("Довжина маршруту має бути числовим значенням.");
+            }
+
+            if (!int.TryParse(StopCountEntry.Text.Trim(), out int stopCount))
+            {
+                errors.Add("Кількість зупинок має бути цілим числом.");
+            }
+
+            if (!int.TryParse(VehicleCountEntry.Text.Trim(), out int vehicleCount))
+            {
+                errors.Add("Кількість транспорту має бути цілим числом.");
+            }
+
+            if (!int.TryParse(RouteNumberEntry.Text.Trim(), out int routeNumber))
+            {
+                errors.Add("Номер маршруту має бути цілим числом.");
+            }
+
+            if (errors.Any())
+            {
+                DisplayAlert("Помилка", string.Join("\n", errors), "OK");
                 return;
             }
 
-            // Ініціалізація списку зупинок з порожніми координатами і назвами
+            if (Routes.ContainsKey(cityName))
+            {
+                var existingRoute = Routes[cityName]
+                    .FirstOrDefault(r => r.RouteNumber == routeNumber.ToString() &&
+                                         r.TransportType.Equals(transportType, StringComparison.OrdinalIgnoreCase) &&
+                                         r.CityName.Equals(cityName, StringComparison.OrdinalIgnoreCase));
+
+                if (existingRoute != null)
+                {
+                    DisplayAlert("Помилка", "Такий маршрут вже існує. Ви можете відредагувати його за необхідності.", "OK");
+                    return;
+                }
+            }
+
             var stops = new List<(string StopName, double Latitude, double Longitude)>();
             for (int i = 0; i < stopCount; i++)
             {
                 stops.Add(($"Зупинка {i + 1}", 0, 0));
             }
 
-            // Створення або оновлення об'єкта маршруту
             var newRoute = new RouteInfo
             {
                 CityName = cityName,
-                RouteNumber = routeNumber,
+                RouteNumber = routeNumber.ToString(),
                 Description = DescriptionEntry.Text.Trim(),
                 Details = DetailsEntry.Text.Trim(),
                 RouteLength = routeLength,
                 StopCount = stopCount,
                 VehicleCount = vehicleCount,
                 Interval = IntervalEntry.Text.Trim(),
-                TransportType = TransportTypeEntry.Text.Trim(),
+                TransportType = transportType,
                 Stops = stops
             };
 
-            // Додавання або оновлення маршруту у файлі
             if (Routes.ContainsKey(cityName))
             {
-                var existingRoute = Routes[cityName].FirstOrDefault(r => r.RouteNumber == routeNumber);
+                var existingRoute = Routes[cityName].FirstOrDefault(r => r.RouteNumber == newRoute.RouteNumber);
                 if (existingRoute != null)
                 {
-                    Routes[cityName].Remove(existingRoute); // Видаляємо старий маршрут
+                    Routes[cityName].Remove(existingRoute);
                 }
-                Routes[cityName].Add(newRoute); // Додаємо оновлений маршрут
+                Routes[cityName].Add(newRoute);
             }
             else
             {
-                Routes[cityName] = new List<RouteInfo> { newRoute }; // Створюємо новий список маршрутів для міста
+                Routes[cityName] = new List<RouteInfo> { newRoute };
             }
 
-            // Збереження змін у файл JSON
             string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
             RouteService.SaveRoutes(Routes, filePath);
 
-            // Оновлення Picker для зупинок
+            OnCityFilterUpdatedWithValidation("Всі");
+
             StopPicker.ItemsSource = Enumerable.Range(1, stopCount).Select(i => $"Зупинка {i}").ToList();
             StopPicker.SelectedIndex = 0;
 
-            // Розблокування полів для координат і назви зупинки
             StopNameEntry.IsEnabled = true;
             LatitudeEntry.IsEnabled = true;
             LongitudeEntry.IsEnabled = true;
             SaveCoordinatesButton.IsEnabled = true;
 
-            DisplayAlert("Успіх", $"Маршрут для міста {cityName} успішно додано або оновлено.", "OK");
+            DisplayAlert("Успіх", $"Маршрут для міста '{cityName}' успішно додано або оновлено.", "OK");
             ClearInputFields();
         }
 
@@ -882,7 +923,58 @@ namespace Kursova
             if (StopPicker != null) StopPicker.SelectedIndex = -1;
             if (LatitudeEntry != null) LatitudeEntry.Text = string.Empty;
             if (LongitudeEntry != null) LongitudeEntry.Text = string.Empty;
+
+            ResetFieldBorders();
         }
+
+        private void ResetFieldBorders()
+        {
+            SetBorderColor(CityNameFrame, false);
+            SetBorderColor(RouteNumberFrame, false);
+            SetBorderColor(DescriptionFrame, false);
+            SetBorderColor(DetailsFrame, false);
+            SetBorderColor(RouteLengthFrame, false);
+            SetBorderColor(StopCountFrame, false);
+            SetBorderColor(VehicleCountFrame, false);
+            SetBorderColor(IntervalFrame, false);
+            SetBorderColor(TransportTypeFrame, false);
+
+            SetBorderColor(StopPickerFrame, false);
+            SetBorderColor(StopNameFrame, false);
+            SetBorderColor(LatitudeFrame, false);
+            SetBorderColor(LongitudeFrame, false);
+        }
+
+        private void OnCityFilterUpdatedWithValidation(string selectedCity)
+        {
+            DisplayedRoutes.Clear();
+
+            if (selectedCity == "Всі")
+            {
+                foreach (var city in Routes.Keys)
+                {
+                    foreach (var route in Routes[city])
+                    {
+                        // Перевірка на наявність неповних даних
+                        route.HasMissingData = route.CheckForMissingData();
+                        DisplayedRoutes.Add(route);
+                    }
+                }
+            }
+            else
+            {
+                if (Routes.ContainsKey(selectedCity))
+                {
+                    foreach (var route in Routes[selectedCity])
+                    {
+                        // Перевірка на наявність неповних даних
+                        route.HasMissingData = route.CheckForMissingData();
+                        DisplayedRoutes.Add(route);
+                    }
+                }
+            }
+        }
+
 
         private void OnCityFilterUpdated(string selectedCity)
         {
