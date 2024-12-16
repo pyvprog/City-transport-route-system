@@ -196,12 +196,19 @@
                                         FontSize="14" 
                                         VerticalOptions="Center" 
                                         Grid.Column="1" />
-                                <Label Text="" Grid.Column="2" />
-                                <!-- Назва міста -->
+                                <!-- Назва міста
                                 <Label Text="{Binding CityName}" 
                                         FontSize="14" 
                                         VerticalOptions="Center" 
-                                        Grid.Column="3" />
+                                        Grid.Column="3" -->
+                                <!-- Знак оклику, якщо дані відсутні -->
+                                <Label Text="❗"
+                                        FontSize="18"
+                                        TextColor="Red"
+                                        VerticalOptions="Center"
+                                        HorizontalOptions="Center"
+                                        IsVisible="{Binding HasMissingData}"
+                                        Grid.Column="2" />
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
@@ -235,31 +242,97 @@
 
             <!-- Поля для введення інформації про маршрут -->
             <StackLayout Orientation="Vertical" HorizontalOptions="End" VerticalOptions="FillAndExpand" Margin="10" WidthRequest="300">
-                <Entry x:Name="CityNameEntry" Placeholder="Назва міста" />
-                <Entry x:Name="RouteNumberEntry" Placeholder="Номер маршруту" />
-                <Entry x:Name="DescriptionEntry" Placeholder="Опис маршруту" />
-                <Entry x:Name="DetailsEntry" Placeholder="Деталі маршруту" />
-                <Entry x:Name="RouteLengthEntry" Placeholder="Довжина маршруту (км)" Keyboard="Numeric" />
-                <Entry x:Name="StopCountEntry" Placeholder="Кількість зупинок" Keyboard="Numeric" />
-                <Entry x:Name="VehicleCountEntry" Placeholder="Кількість транспорту" Keyboard="Numeric" />
-                <Entry x:Name="IntervalEntry" Placeholder="Інтервал транспорту" />
-                <Entry x:Name="TransportTypeEntry" Placeholder="Тип транспорту" />
-                <Picker x:Name="StopPicker" Title="Оберіть зупинку" />
-                <Entry x:Name="LatitudeEntry" Placeholder="Широта" Keyboard="Numeric" />
-                <Entry x:Name="LongitudeEntry" Placeholder="Довгота" Keyboard="Numeric" />
-                <Button Text="Зберегти координати" Clicked="OnSaveCoordinatesClicked" />
+
+                <!-- Загальні поля маршруту -->
+                <Frame x:Name="CityNameFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="CityNameEntry" Placeholder="Назва міста" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="RouteNumberFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="RouteNumberEntry" Placeholder="Номер маршруту" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="DescriptionFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="DescriptionEntry" Placeholder="Опис маршруту" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="DetailsFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="DetailsEntry" Placeholder="Деталі маршруту" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="RouteLengthFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="RouteLengthEntry" Placeholder="Довжина маршруту (км)" Keyboard="Numeric" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="StopCountFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="StopCountEntry" Placeholder="Кількість зупинок" Keyboard="Numeric" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="VehicleCountFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="VehicleCountEntry" Placeholder="Кількість транспорту" Keyboard="Numeric" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="IntervalFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="IntervalEntry" Placeholder="Інтервал транспорту" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <Frame x:Name="TransportTypeFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="TransportTypeEntry" Placeholder="Тип транспорту" TextChanged="OnFieldTextChanged"/>
+                </Frame>
+
+                <!-- Вибір зупинки -->
+                <Frame x:Name="StopPickerFrame" Padding="0" BorderColor="Transparent" CornerRadius="5">
+                    <Picker x:Name="StopPicker"
+            Title="Оберіть зупинку"
+            SelectedIndexChanged="OnStopPickerSelectionChanged"
+            HorizontalOptions="FillAndExpand" />
+                </Frame>
+
+                <!-- Поля для введення зупинки -->
+                <Frame x:Name="StopNameFrame" Padding="5" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="StopNameEntry"
+           Placeholder="Назва зупинки"
+           IsEnabled="False"
+           HorizontalOptions="FillAndExpand" />
+                </Frame>
+
+                <Frame x:Name="LatitudeFrame" Padding="5" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="LatitudeEntry"
+           Placeholder="Широта"
+           IsEnabled="False"
+           HorizontalOptions="FillAndExpand" />
+                </Frame>
+
+                <Frame x:Name="LongitudeFrame" Padding="5" BorderColor="Transparent" CornerRadius="5">
+                    <Entry x:Name="LongitudeEntry"
+           Placeholder="Довгота"
+           IsEnabled="False"
+           HorizontalOptions="FillAndExpand" />
+                </Frame>
+
+
+                <!-- Кнопка збереження координат -->
+                <Button x:Name="SaveCoordinatesButton"
+            Text="Зберегти координати"
+            IsEnabled="False"
+            Clicked="OnSaveCoordinatesClicked" />
+
+                <!-- Кнопки дій -->
                 <Button Text="Додати/Оновити маршрут"
-                Clicked="OnAddOrUpdateRouteClicked"
-                BackgroundColor="LightGray"
-                Margin="10" />
+            Clicked="OnAddOrUpdateRouteClicked"
+            BackgroundColor="LightGray"
+            Margin="10" />
+
                 <Button Text="Редагувати"
-                Clicked="OnEditRouteClicked"
-                BackgroundColor="LightGray"
-                Margin="10" />
+            Clicked="OnEditRouteClicked"
+            BackgroundColor="LightGray"
+            Margin="10" />
+
                 <Button Text="Видалити"
-                Clicked="OnDeleteRouteClicked"
-                BackgroundColor="Red"
-                Margin="10" />
+            Clicked="OnDeleteRouteClicked"
+            BackgroundColor="Red"
+            Margin="10" />
+
             </StackLayout>
 
             <!-- Кнопки управління -->
@@ -425,11 +498,41 @@
                         AbsoluteLayout.LayoutFlags="XProportional"
                         Clicked="OnBuildRouteClicked" />
 
-                <!-- Карта -->
-                <WebView x:Name="MapWebView"
-                         Source="map.html"
-                         AbsoluteLayout.LayoutBounds="0.5,0.93,0.98,0.67"
-                         AbsoluteLayout.LayoutFlags="All" />
+                <!-- Нижня частина з Grid: список маршрутів і карта -->
+                <Grid AbsoluteLayout.LayoutBounds="0.5,0.95,0.98,0.67"
+                        AbsoluteLayout.LayoutFlags="All"
+                        ColumnDefinitions="*,2*">
+                    <!-- Список маршрутів -->
+                    <StackLayout Grid.Column="0" BackgroundColor="#E8E8E8">
+                        <Label Text="Список маршрутів"
+                       FontAttributes="Bold"
+                       FontSize="18"
+                       HorizontalOptions="Center"
+                       Margin="0,10" />
+                        <CollectionView x:Name="RoutesListView"
+                                ItemsSource="{Binding FilteredRoutes}"
+                                SelectionMode="Single"
+                                HeightRequest="400"
+                                VerticalOptions="FillAndExpand">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <StackLayout Padding="5">
+                                        <!--Label Text="{Binding RouteNumber}" FontAttributes="Bold" -->
+                                        <Label Text="{Binding Description}" TextColor="Black" FontSize="14" />
+                                        <Label Text="{Binding TransportType}" TextColor="Black" FontSize="12" />
+                                    </StackLayout>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </StackLayout>
+
+                    <!-- Карта -->
+                    <WebView x:Name="MapWebView"
+                     Source="map.html"
+                     Grid.Column="1"
+                     VerticalOptions="FillAndExpand"
+                     HorizontalOptions="FillAndExpand" />
+                </Grid>
             </AbsoluteLayout>
         </Grid>
     </Grid>

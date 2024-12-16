@@ -13,6 +13,7 @@ using System;
 using System.Globalization;
 using System.Windows.Input;
 using Newtonsoft.Json;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Kursova
 {
@@ -28,7 +29,6 @@ namespace Kursova
         private ObservableCollection<NewsItem> _newsHeadlines = new ObservableCollection<NewsItem>();
         public ObservableCollection<RouteInfo> DisplayedRoutes { get; set; } = new ObservableCollection<RouteInfo>();
         private Dictionary<string, List<RouteInfo>> Routes = new();
-        private Dictionary<string, List<RouteInfo>> TempRoutes = new();
         private int _currentNewsIndex = 0;
         private string _currentTime = string.Empty;
         private NewsItem _currentNews = new NewsItem();
@@ -100,6 +100,7 @@ namespace Kursova
             //_ = CopyHtmlToAppDataDirectory();
             CityPicker.ItemsSource = new List<string> { "Всі", "Київ", "Львів", "Херсон" };
             CityPicker.SelectedItem = "Всі"; // Встановлюємо значення за замовчуванням
+            LoadRoutesData();
         }
 
         public bool IsAdminLoggedIn
@@ -113,6 +114,12 @@ namespace Kursova
                     OnPropertyChanged(nameof(IsAdminLoggedIn));
                 }
             }
+        }
+
+        private void LoadRoutesData()
+        {
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            Routes = RouteService.LoadRoutes(filePath);
         }
 
         private void StartClock()
@@ -361,27 +368,20 @@ namespace Kursova
 
             DisplayedRoutes.Clear();
 
-            if (TempRoutes == null || TempRoutes.Count == 0)
-            {
-                string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
-                TempRoutes = RouteService.LoadRoutes(filePath);
-            }
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            Routes = RouteService.LoadRoutes(filePath);
 
-            foreach (var city in TempRoutes.Keys)
+            foreach (var city in Routes.Keys)
             {
-                foreach (var route in TempRoutes[city])
+                foreach (var route in Routes[city])
                 {
-                    if (string.IsNullOrWhiteSpace(route.CityName))
-                    {
-                        route.CityName = city;
-                    }
+                    route.HasMissingData = route.CheckForMissingData();
                     DisplayedRoutes.Add(route);
                 }
             }
 
             RoutesCollectionView.ItemsSource = DisplayedRoutes;
         }
-
 
         private void OnAdminCancelClicked(object sender, EventArgs e)
         {
@@ -392,18 +392,59 @@ namespace Kursova
 
         public class RouteInfo
         {
-            public string CityName { get; set; } = string.Empty; // Назва міста
-            public string RouteNumber { get; set; } = string.Empty; // Номер маршруту
-            public string Description { get; set; } = string.Empty; // Опис маршруту
-            public string Details { get; set; } = string.Empty; // Додаткові деталі
-            public double RouteLength { get; set; } // Довжина маршруту (км)
-            public int StopCount { get; set; } // Кількість зупинок
-            public int VehicleCount { get; set; } // Кількість транспорту на маршруті
-            public string Interval { get; set; } = string.Empty; // Інтервал транспорту
-            public string TransportType { get; set; } = string.Empty; // Тип транспорту
-            public List<(string StopName, double Latitude, double Longitude)> Stops { get; set; } = new();
-        }
+            public string CityName { get; set; } = string.Empty;
+            public string RouteNumber { get; set; } = string.Empty;
+            public string Description { get; set; } = string.Empty;
+            public string Details { get; set; } = string.Empty;
+            public double RouteLength { get; set; }
+            public int StopCount { get; set; }
+            public int VehicleCount { get; set; }
+            public string Interval { get; set; } = string.Empty;
+            public string TransportType { get; set; } = string.Empty;
 
+            public List<(string StopName, double Latitude, double Longitude)> Stops { get; set; } = new();
+
+            [JsonIgnore]
+            public bool HasMissingData { get; set; } = false;
+
+            public bool CheckForMissingData()
+            {
+                bool isGeneralMissing = IsGeneralDataMissing();
+                bool isStopsMissing = AreStopsDataMissing();
+
+                return isGeneralMissing || isStopsMissing;
+            }
+
+            private bool IsGeneralDataMissing()
+            {
+                return string.IsNullOrWhiteSpace(CityName) ||
+                       string.IsNullOrWhiteSpace(RouteNumber) ||
+                       string.IsNullOrWhiteSpace(Description) ||
+                       string.IsNullOrWhiteSpace(Details) ||
+                       RouteLength <= 0 ||
+                       StopCount <= 0 ||
+                       VehicleCount <= 0 ||
+                       string.IsNullOrWhiteSpace(Interval) ||
+                       string.IsNullOrWhiteSpace(TransportType);
+            }
+
+            private bool AreStopsDataMissing()
+            {
+                return Stops.Any(stop =>
+                    string.IsNullOrWhiteSpace(stop.StopName) ||
+                    stop.Latitude == 0.0 ||
+                    stop.Longitude == 0.0);
+            }
+
+            public List<(string StopName, double Latitude, double Longitude)> GetStopsWithMissingData()
+            {
+                return Stops
+                    .Where(stop => string.IsNullOrWhiteSpace(stop.StopName) ||
+                                   stop.Latitude == 0.0 ||
+                                   stop.Longitude == 0.0)
+                    .ToList();
+            }
+        }
 
         public static class RouteService
         {
@@ -415,11 +456,35 @@ namespace Kursova
                 }
 
                 var json = File.ReadAllText(filePath);
-
                 try
                 {
-                    return JsonConvert.DeserializeObject<Dictionary<string, List<RouteInfo>>>(json)
-                           ?? new Dictionary<string, List<RouteInfo>>();
+                    var routes = JsonConvert.DeserializeObject<Dictionary<string, List<RouteInfo>>>(json)
+                                 ?? new Dictionary<string, List<RouteInfo>>();
+
+                    foreach (var city in routes.Keys)
+                    {
+                        foreach (var route in routes[city])
+                        {
+                            // Якщо CityName порожній, заповнюємо його назвою міста
+                            if (string.IsNullOrWhiteSpace(route.CityName))
+                            {
+                                route.CityName = city;
+                            }
+
+                            // Перевірка і заповнення зупинок, якщо їх кількість менша за StopCount
+                            if (route.Stops == null)
+                            {
+                                route.Stops = new List<(string StopName, double Latitude, double Longitude)>();
+                            }
+
+                            while (route.Stops.Count < route.StopCount)
+                            {
+                                route.Stops.Add((string.Empty, 0.0, 0.0)); // Додаємо "порожню" зупинку
+                            }
+                        }
+                    }
+
+                    return routes;
                 }
                 catch (Exception ex)
                 {
@@ -454,6 +519,8 @@ namespace Kursova
                 DisplayAlert("Помилка", "Будь ласка, виберіть маршрут.", "OK");
             }
         }
+
+
 
         //private void OnAddRouteClicked(object sender, EventArgs e)
         //{
@@ -509,7 +576,6 @@ namespace Kursova
                 return;
             }
 
-            // Заповнюємо поля введення даними обраного маршруту
             CityNameEntry.Text = selectedRoute.CityName;
             RouteNumberEntry.Text = selectedRoute.RouteNumber;
             DescriptionEntry.Text = selectedRoute.Description;
@@ -520,66 +586,147 @@ namespace Kursova
             IntervalEntry.Text = selectedRoute.Interval;
             TransportTypeEntry.Text = selectedRoute.TransportType;
 
-            // Оновлюємо Picker для вибору зупинок
-            StopPicker.ItemsSource = Enumerable.Range(1, selectedRoute.StopCount)
-                .Select(i => $"Зупинка {i}").ToList();
+            ValidateRouteFields(selectedRoute);
+
+            EnsureStopCountConsistency(selectedRoute);
+
+            StopPicker.ItemsSource = Enumerable.Range(1, selectedRoute.Stops.Count)
+                                               .Select(i => $"Зупинка {i}")
+                                               .ToList();
             StopPicker.SelectedIndex = 0;
 
-            // Відображення координат першої зупинки (якщо доступно)
-            if (selectedRoute.Stops != null && selectedRoute.Stops.Any())
+            OnStopPickerSelectionChanged(StopPicker, EventArgs.Empty);
+        }
+
+        private void EnsureStopCountConsistency(RouteInfo route)
+        {
+            if (route.Stops == null)
             {
-                var firstStop = selectedRoute.Stops[0];
-                LatitudeEntry.Text = firstStop.Latitude.ToString();
-                LongitudeEntry.Text = firstStop.Longitude.ToString();
+                route.Stops = new List<(string StopName, double Latitude, double Longitude)>();
+            }
+
+            while (route.Stops.Count < route.StopCount)
+            {
+                route.Stops.Add((string.Empty, 0.0, 0.0));
+            }
+        }
+
+        private void OnStopPickerSelectionChanged(object sender, EventArgs e)
+        {
+            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute)
+                return;
+
+            int stopIndex = StopPicker.SelectedIndex;
+
+            if (stopIndex >= 0 && stopIndex < selectedRoute.Stops.Count)
+            {
+                var selectedStop = selectedRoute.Stops[stopIndex];
+
+                StopNameEntry.Text = selectedStop.StopName ?? string.Empty;
+                LatitudeEntry.Text = selectedStop.Latitude != 0.0 ? selectedStop.Latitude.ToString() : string.Empty;
+                LongitudeEntry.Text = selectedStop.Longitude != 0.0 ? selectedStop.Longitude.ToString() : string.Empty;
+
+                ToggleStopFields(true);
+
+                bool isStopIncomplete = string.IsNullOrWhiteSpace(selectedStop.StopName) ||
+                                        selectedStop.Latitude == 0.0 ||
+                                        selectedStop.Longitude == 0.0;
+
+                SetBorderColor(StopPickerFrame, isStopIncomplete);
+                SetBorderColor(StopNameFrame, string.IsNullOrWhiteSpace(selectedStop.StopName));
+                SetBorderColor(LatitudeFrame, selectedStop.Latitude == 0.0);
+                SetBorderColor(LongitudeFrame, selectedStop.Longitude == 0.0);
             }
             else
             {
+                ToggleStopFields(false);
+
+                StopNameEntry.Text = string.Empty;
                 LatitudeEntry.Text = string.Empty;
                 LongitudeEntry.Text = string.Empty;
+
+                SetBorderColor(StopPickerFrame, true);
             }
-            //SaveChangesButton.IsEnabled = true;
+        }
+
+        private void ValidateRouteFields(RouteInfo route)
+        {
+            SetBorderColor(CityNameFrame, string.IsNullOrWhiteSpace(route.CityName));
+            SetBorderColor(RouteNumberFrame, string.IsNullOrWhiteSpace(route.RouteNumber));
+            SetBorderColor(DescriptionFrame, string.IsNullOrWhiteSpace(route.Description));
+            SetBorderColor(DetailsFrame, string.IsNullOrWhiteSpace(route.Details));
+            SetBorderColor(RouteLengthFrame, route.RouteLength <= 0);
+            SetBorderColor(StopCountFrame, route.StopCount <= 0);
+            SetBorderColor(VehicleCountFrame, route.VehicleCount <= 0);
+            SetBorderColor(IntervalFrame, string.IsNullOrWhiteSpace(route.Interval));
+            SetBorderColor(TransportTypeFrame, string.IsNullOrWhiteSpace(route.TransportType));
+
+            if (StopPicker.SelectedIndex >= 0 && StopPicker.SelectedIndex < route.Stops.Count)
+            {
+                var selectedStop = route.Stops[StopPicker.SelectedIndex];
+                bool isIncompleteStop = string.IsNullOrWhiteSpace(selectedStop.StopName) ||
+                                        selectedStop.Latitude == 0.0 ||
+                                        selectedStop.Longitude == 0.0;
+
+                SetBorderColor(StopPickerFrame, isIncompleteStop);
+                ValidateStopFields(selectedStop);
+            }
+            else
+            {
+                SetBorderColor(StopPickerFrame, true);
+            }
+        }
+
+        private void ValidateStopFields((string StopName, double Latitude, double Longitude) stop)
+        {
+            SetBorderColor(StopNameFrame, string.IsNullOrWhiteSpace(stop.StopName));
+            SetBorderColor(LatitudeFrame, stop.Latitude == 0.0);
+            SetBorderColor(LongitudeFrame, stop.Longitude == 0.0);
+        }
+
+        private void ToggleStopFields(bool isEnabled)
+        {
+            StopNameEntry.IsEnabled = isEnabled;
+            LatitudeEntry.IsEnabled = isEnabled;
+            LongitudeEntry.IsEnabled = isEnabled;
+            SaveCoordinatesButton.IsEnabled = isEnabled;
+        }
+
+        private void SetBorderColor(Frame frame, bool isMissing)
+        {
+            frame.BackgroundColor = isMissing ? Colors.LightCoral : Colors.Transparent;
         }
 
         private void OnDeleteRouteClicked(object sender, EventArgs e)
         {
-            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute || selectedRoute == null)
+            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute)
             {
                 DisplayAlert("Помилка", "Будь ласка, оберіть маршрут для видалення.", "OK");
                 return;
             }
 
-            if (Routes.ContainsKey(selectedRoute.CityName))
+            string cityName = selectedRoute.CityName;
+
+            if (Routes.ContainsKey(cityName))
             {
-                Routes[selectedRoute.CityName].Remove(selectedRoute);
+                var routesInCity = Routes[cityName];
+                routesInCity.Remove(selectedRoute);
 
-                if (!Routes[selectedRoute.CityName].Any())
+                if (!routesInCity.Any())
                 {
-                    Routes.Remove(selectedRoute.CityName);
+                    Routes.Remove(cityName);
                 }
 
-                // Синхронізація з TempRoutes
-                if (TempRoutes.ContainsKey(selectedRoute.CityName))
-                {
-                    TempRoutes[selectedRoute.CityName].Remove(selectedRoute);
-
-                    if (!TempRoutes[selectedRoute.CityName].Any())
-                    {
-                        TempRoutes.Remove(selectedRoute.CityName);
-                    }
-                }
-
-                // Запис змін до файлу
                 string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
                 RouteService.SaveRoutes(Routes, filePath);
 
-                // Оновлення відображення
                 OnCityFilterChanged(this, EventArgs.Empty);
 
-                DisplayAlert("Успіх", "Маршрут видалено.", "OK");
+                DisplayAlert("Успіх", $"Маршрут {selectedRoute.Description} успішно видалено.", "OK");
             }
             else
             {
-                DisplayAlert("Помилка", "Вибраного маршруту немає у файлі.", "OK");
+                DisplayAlert("Помилка", "Маршрут не знайдено у файлі.", "OK");
             }
         }
 
@@ -595,7 +742,6 @@ namespace Kursova
 
         private void OnCityFilterChanged(object? sender, EventArgs e)
         {
-            // Перевірка та встановлення значення за замовчуванням
             if (CityPicker.SelectedItem == null)
             {
                 CityPicker.SelectedItem = "Всі";
@@ -638,6 +784,7 @@ namespace Kursova
 
         private void OnAddOrUpdateRouteClicked(object sender, EventArgs e)
         {
+            // Перевірка, чи заповнені основні поля маршруту
             if (string.IsNullOrWhiteSpace(CityNameEntry.Text) ||
                 string.IsNullOrWhiteSpace(RouteNumberEntry.Text) ||
                 string.IsNullOrWhiteSpace(DescriptionEntry.Text) ||
@@ -648,10 +795,11 @@ namespace Kursova
                 string.IsNullOrWhiteSpace(IntervalEntry.Text) ||
                 string.IsNullOrWhiteSpace(TransportTypeEntry.Text))
             {
-                DisplayAlert("Помилка", "Будь ласка, заповніть усі поля.", "OK");
+                DisplayAlert("Помилка", "Будь ласка, заповніть усі поля маршруту.", "OK");
                 return;
             }
 
+            // Збір даних з полів введення
             var cityName = CityNameEntry.Text.Trim();
             var routeNumber = RouteNumberEntry.Text.Trim();
 
@@ -663,13 +811,14 @@ namespace Kursova
                 return;
             }
 
+            // Ініціалізація списку зупинок з порожніми координатами і назвами
             var stops = new List<(string StopName, double Latitude, double Longitude)>();
             for (int i = 0; i < stopCount; i++)
             {
-                string stopName = $"Зупинка {i + 1}";
-                stops.Add((stopName, 0, 0));
+                stops.Add(($"Зупинка {i + 1}", 0, 0));
             }
 
+            // Створення або оновлення об'єкта маршруту
             var newRoute = new RouteInfo
             {
                 CityName = cityName,
@@ -684,40 +833,36 @@ namespace Kursova
                 Stops = stops
             };
 
+            // Додавання або оновлення маршруту у файлі
             if (Routes.ContainsKey(cityName))
             {
                 var existingRoute = Routes[cityName].FirstOrDefault(r => r.RouteNumber == routeNumber);
                 if (existingRoute != null)
                 {
-                    Routes[cityName].Remove(existingRoute);
+                    Routes[cityName].Remove(existingRoute); // Видаляємо старий маршрут
                 }
-                Routes[cityName].Add(newRoute);
+                Routes[cityName].Add(newRoute); // Додаємо оновлений маршрут
             }
             else
             {
-                Routes[cityName] = new List<RouteInfo> { newRoute };
+                Routes[cityName] = new List<RouteInfo> { newRoute }; // Створюємо новий список маршрутів для міста
             }
 
+            // Збереження змін у файл JSON
             string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
             RouteService.SaveRoutes(Routes, filePath);
 
-            TempRoutes = Routes.ToDictionary(entry => entry.Key, entry => entry.Value.Select(route => new RouteInfo
-            {
-                CityName = route.CityName,
-                RouteNumber = route.RouteNumber,
-                Description = route.Description,
-                Details = route.Details,
-                RouteLength = route.RouteLength,
-                StopCount = route.StopCount,
-                VehicleCount = route.VehicleCount,
-                Interval = route.Interval,
-                TransportType = route.TransportType,
-                Stops = route.Stops.Select(stop => new ValueTuple<string, double, double>(stop.StopName, stop.Latitude, stop.Longitude)).ToList()
-            }).ToList());
+            // Оновлення Picker для зупинок
+            StopPicker.ItemsSource = Enumerable.Range(1, stopCount).Select(i => $"Зупинка {i}").ToList();
+            StopPicker.SelectedIndex = 0;
 
-            OnCityFilterChanged(this, EventArgs.Empty);
+            // Розблокування полів для координат і назви зупинки
+            StopNameEntry.IsEnabled = true;
+            LatitudeEntry.IsEnabled = true;
+            LongitudeEntry.IsEnabled = true;
+            SaveCoordinatesButton.IsEnabled = true;
 
-            DisplayAlert("Успіх", $"Маршрут успішно додано або оновлено у файлі для міста: {cityName}.", "OK");
+            DisplayAlert("Успіх", $"Маршрут для міста {cityName} успішно додано або оновлено.", "OK");
             ClearInputFields();
         }
 
@@ -765,6 +910,37 @@ namespace Kursova
             }
         }
 
+        private void ValidateFieldsForCoordinates()
+        {
+            bool isFormValid = !string.IsNullOrWhiteSpace(CityNameEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(RouteNumberEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(DescriptionEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(DetailsEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(RouteLengthEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(StopCountEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(VehicleCountEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(IntervalEntry.Text) &&
+                               !string.IsNullOrWhiteSpace(TransportTypeEntry.Text);
+
+            StopPicker.IsEnabled = isFormValid;
+            StopNameEntry.IsEnabled = isFormValid;
+            LatitudeEntry.IsEnabled = isFormValid;
+            LongitudeEntry.IsEnabled = isFormValid;
+            SaveCoordinatesButton.IsEnabled = isFormValid;
+
+            if (isFormValid && int.TryParse(StopCountEntry.Text, out int stopCount))
+            {
+                StopPicker.ItemsSource = Enumerable.Range(1, stopCount).Select(i => $"Зупинка {i}").ToList();
+            }
+        }
+        private void OnFieldTextChanged(object sender, TextChangedEventArgs e)
+        {
+            ValidateFieldsForCoordinates();
+        }
+
+
+
+
         //private void OnSaveChangesClicked(object sender, EventArgs e)
         //{
         //    string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
@@ -780,20 +956,6 @@ namespace Kursova
         {
             ClearInputFields();
 
-            TempRoutes = Routes.ToDictionary(entry => entry.Key, entry => entry.Value.Select(route => new RouteInfo
-            {
-                CityName = route.CityName,
-                RouteNumber = route.RouteNumber,
-                Description = route.Description,
-                Details = route.Details,
-                RouteLength = route.RouteLength,
-                StopCount = route.StopCount,
-                VehicleCount = route.VehicleCount,
-                Interval = route.Interval,
-                TransportType = route.TransportType,
-                Stops = route.Stops.Select(stop => new ValueTuple<string, double, double>(stop.StopName, stop.Latitude, stop.Longitude)).ToList()
-            }).ToList());
-
             OnCityFilterChanged(this, EventArgs.Empty);
 
             if (StopPicker != null)
@@ -805,90 +967,98 @@ namespace Kursova
             if (LatitudeEntry != null) LatitudeEntry.Text = string.Empty;
             if (LongitudeEntry != null) LongitudeEntry.Text = string.Empty;
 
-            DisplayAlert("Скинуто", "Всі незбережені зміни скасовані.", "OK");
+            DisplayAlert("Скинуто", "Всі зміни скасовані. Поля та вибори очищено.", "OK");
         }
 
         private void OnSaveCoordinatesClicked(object sender, EventArgs e)
         {
+            // Перевірка, чи обрано маршрут
             if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute)
             {
                 DisplayAlert("Помилка", "Спочатку виберіть маршрут.", "OK");
                 return;
             }
 
+            // Перевірка, чи обрано зупинку у Picker
             if (StopPicker.SelectedItem is null)
             {
                 DisplayAlert("Помилка", "Будь ласка, оберіть зупинку.", "OK");
+                HighlightEmptyStopFields();
                 return;
             }
 
+            // Перевірка валідності координат
             if (!double.TryParse(LatitudeEntry.Text.Trim(), out double latitude) ||
                 !double.TryParse(LongitudeEntry.Text.Trim(), out double longitude))
             {
-                DisplayAlert("Помилка", "Будь ласка, введіть коректні координати.", "OK");
+                DisplayAlert("Помилка", "Будь ласка, введіть коректні координати (широта та довгота).", "OK");
+                HighlightEmptyStopFields();
+                return;
+            }
+
+            // Перевірка назви зупинки
+            if (string.IsNullOrWhiteSpace(StopNameEntry.Text))
+            {
+                DisplayAlert("Помилка", "Будь ласка, введіть назву зупинки.", "OK");
+                HighlightEmptyStopFields();
                 return;
             }
 
             int stopIndex = StopPicker.SelectedIndex;
 
+            // Перевірка, чи індекс зупинки валідний
             if (stopIndex >= 0 && stopIndex < selectedRoute.Stops.Count)
             {
+                // Оновлюємо координати та назву зупинки
+                var updatedStop = (StopName: StopNameEntry.Text.Trim(), Latitude: latitude, Longitude: longitude);
+                selectedRoute.Stops[stopIndex] = updatedStop;
+
+                // Зберігаємо зміни у Routes
                 string cityName = selectedRoute.CityName;
                 string routeNumber = selectedRoute.RouteNumber;
 
-                // Оновлюємо координати зупинки в TempRoutes
-                if (TempRoutes.ContainsKey(cityName))
+                if (Routes.ContainsKey(cityName))
                 {
-                    var routeInTemp = TempRoutes[cityName].FirstOrDefault(r => r.RouteNumber == routeNumber);
-                    if (routeInTemp != null)
+                    var routeToUpdate = Routes[cityName].FirstOrDefault(r => r.RouteNumber == routeNumber);
+                    if (routeToUpdate != null)
                     {
-                        var updatedStop = routeInTemp.Stops[stopIndex];
-                        updatedStop.Latitude = latitude;
-                        updatedStop.Longitude = longitude;
-                        routeInTemp.Stops[stopIndex] = updatedStop;
+                        routeToUpdate.Stops[stopIndex] = updatedStop;
 
-                        DisplayAlert("Успіх", $"Координати для {updatedStop.StopName} оновлено.", "OK");
+                        // Зберігаємо оновлений файл
+                        string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                        RouteService.SaveRoutes(Routes, filePath);
+
+                        DisplayAlert("Успіх", $"Координати та назва для '{updatedStop.StopName}' оновлено.", "OK");
                         return;
                     }
                 }
-
-                DisplayAlert("Помилка", "Не вдалося знайти маршрут у тимчасовій пам'яті.", "OK");
             }
             else
             {
                 DisplayAlert("Помилка", "Індекс зупинки поза межами.", "OK");
+                HighlightEmptyStopFields();
             }
         }
 
-        private void OnStopPickerChanged(object sender, EventArgs e)
+        private void HighlightEmptyStopFields()
         {
-            if (RoutesCollectionView.SelectedItem is not RouteInfo selectedRoute)
-            {
-                DisplayAlert("Помилка", "Спочатку виберіть маршрут.", "OK");
-                return;
-            }
+            StopNameEntry.BackgroundColor = string.IsNullOrWhiteSpace(StopNameEntry.Text)
+                ? Colors.Red
+                : Colors.Transparent;
 
-            if (StopPicker.SelectedItem is null)
-            {
-                LatitudeEntry.Text = string.Empty;
-                LongitudeEntry.Text = string.Empty;
-                return;
-            }
+            LatitudeEntry.BackgroundColor = string.IsNullOrWhiteSpace(LatitudeEntry.Text)
+                ? Colors.Red
+                : Colors.Transparent;
 
-            int stopIndex = StopPicker.SelectedIndex;
+            LongitudeEntry.BackgroundColor = string.IsNullOrWhiteSpace(LongitudeEntry.Text)
+                ? Colors.Red
+                : Colors.Transparent;
 
-            if (stopIndex >= 0 && stopIndex < selectedRoute.Stops.Count)
-            {
-                var stop = selectedRoute.Stops[stopIndex];
-                LatitudeEntry.Text = stop.Latitude.ToString();
-                LongitudeEntry.Text = stop.Longitude.ToString();
-            }
-            else
-            {
-                LatitudeEntry.Text = string.Empty;
-                LongitudeEntry.Text = string.Empty;
-            }
+            StopPicker.BackgroundColor = StopPicker.SelectedItem == null
+                ? Colors.Red
+                : Colors.Transparent;
         }
+
         public static class TransportFare
         {
             public const decimal KyivFare = 8.00m;      // Ціна проїзду в Києві
@@ -997,27 +1167,52 @@ namespace Kursova
 
         private void OnCityEntryTextChanged(object sender, TextChangedEventArgs e)
         {
-            string searchText = e.NewTextValue?.ToLower() ?? string.Empty;
+            string searchText = e.NewTextValue?.Trim().ToLower() ?? string.Empty;
             Console.WriteLine($"City search text changed: {searchText}");
 
+            // Очищення списку фільтрованих міст
             FilteredCities.Clear();
-            var filtered = _allCities.Where(c => c.ToLower().StartsWith(searchText)).ToList();
+
+            // Фільтруємо доступні міста
+            var filtered = _allCities
+                .Where(c => c.ToLower().StartsWith(searchText))
+                .ToList();
 
             foreach (var city in filtered)
             {
                 FilteredCities.Add(city);
             }
+
             Console.WriteLine($"Filtered cities count: {FilteredCities.Count}");
 
+            // Динамічний розмір підказок
             const int itemHeight = 50;
             const int maxHeight = 300;
-            int calculatedHeight = FilteredCities.Count > 0 ? Math.Min(FilteredCities.Count * itemHeight, maxHeight) : 0;
+            int calculatedHeight = FilteredCities.Count > 0
+                ? Math.Min(FilteredCities.Count * itemHeight, maxHeight)
+                : 0;
 
             AbsoluteLayout.SetLayoutBounds(CitySuggestionsParent, new Rect(0.5, 155, 300, calculatedHeight));
-
             CitySuggestions.IsVisible = FilteredCities.Count > 0;
 
+            // Оновлюємо статус вибору міста
             IsCitySelected = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
+
+            // Додатково: Оновлення списку маршрутів для введеного міста
+            if (IsCitySelected)
+            {
+                var filteredRoutes = Routes
+                    .Where(city => city.Key.Equals(e.NewTextValue, StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(city => city.Value)
+                    .ToList();
+
+                RoutesListView.ItemsSource = filteredRoutes;
+                Console.WriteLine($"Filtered routes count: {filteredRoutes.Count}");
+            }
+            else
+            {
+                RoutesListView.ItemsSource = null; // Очищаємо список, якщо місто не знайдено
+            }
         }
 
         private string? CurrentSelectedCity = "Київ";
