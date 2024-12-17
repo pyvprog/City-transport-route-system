@@ -408,25 +408,56 @@
 
                 <!-- Кнопка для додавання мітки місця відправлення -->
                 <Button Text="◉"
-                BackgroundColor="LightGray"
-                TextColor="Black"
-                WidthRequest="50"
-                HeightRequest="40"
-                CornerRadius="5"
-                Clicked="OnAddStartPointMarkerClicked"
-                AbsoluteLayout.LayoutBounds="0.01,0.047,50,40"
-                AbsoluteLayout.LayoutFlags="XProportional,YProportional" />
+                        BackgroundColor="LightGray"
+                        TextColor="Black"
+                        WidthRequest="50"
+                        HeightRequest="50"
+                        CornerRadius="5"
+                        Clicked="OnAddStartPointMarkerClicked"
+                        AbsoluteLayout.LayoutBounds="0.01,0.035,50,50"
+                        AbsoluteLayout.LayoutFlags="XProportional,YProportional" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
                 <!-- Кнопка для додавання мітки місця прибуття -->
                 <Button Text="◉"
-                BackgroundColor="LightGray"
-                TextColor="Black"
-                WidthRequest="50"
-                HeightRequest="40"
-                CornerRadius="5"
-                Clicked="OnAddDestinationPointMarkerClicked"
-                AbsoluteLayout.LayoutBounds="0.99,0.047,50,40"
-                AbsoluteLayout.LayoutFlags="XProportional,YProportional" />
+                        BackgroundColor="LightGray"
+                        TextColor="Black"
+                        WidthRequest="50"
+                        HeightRequest="50"
+                        CornerRadius="5"
+                        Clicked="OnAddDestinationPointMarkerClicked"
+                        AbsoluteLayout.LayoutBounds="0.99,0.035,50,50"
+                        AbsoluteLayout.LayoutFlags="XProportional,YProportional" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
+
+                <Button x:Name="BackButton"
+                        Text="←"
+                        FontSize="18"
+                        BackgroundColor="LightGray"
+                        TextColor="Black"
+                        CornerRadius="5"
+                        WidthRequest="50"
+                        HeightRequest="50"
+                        Clicked="OnBackButtonClicked"
+                        AbsoluteLayout.LayoutBounds="0.01,0.12,50,50"
+                        AbsoluteLayout.LayoutFlags="XProportional,YProportional">
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
+
 
                 <!-- Поле для введення міста -->
                 <StackLayout AbsoluteLayout.LayoutBounds="0.5,90,300,-1"
@@ -496,7 +527,13 @@
                         TextColor="Black"
                         AbsoluteLayout.LayoutBounds="0.5,160,200,50"
                         AbsoluteLayout.LayoutFlags="XProportional"
-                        Clicked="OnBuildRouteClicked" />
+                        Clicked="OnBuildRouteClicked" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
                 <!-- Нижня частина з Grid: список маршрутів і карта -->
                 <Grid AbsoluteLayout.LayoutBounds="0.5,0.95,0.98,0.67"

@@ -16,9 +16,9 @@ namespace Kursova.Converters
         {
             if (value is string cityName)
             {
-                return !AvailableCities.Contains(cityName); // Повертає true, якщо місто недоступне
+                return !AvailableCities.Contains(cityName);
             }
-            return true; // За замовчуванням недоступне
+            return true;
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

@@ -1399,7 +1399,7 @@ namespace Kursova
             }
             else
             {
-                RoutesListView.ItemsSource = null; // Очищаємо список, якщо місто не знайдено
+                RoutesListView.ItemsSource = null;
             }
         }
 
@@ -1411,7 +1411,6 @@ namespace Kursova
             {
                 Console.WriteLine($"[OnCitySelected] Selected city: {selectedCity}");
 
-                // Крок 1: Оновлення інтерфейсу користувача
                 CityEntry.Text = selectedCity;
                 CitySuggestions.SelectedItem = null;
                 FilteredCities.Clear();
@@ -1419,17 +1418,15 @@ namespace Kursova
 
                 try
                 {
-                    // Крок 2: Очищення маркерів, маршрутів та полів вводу
                     await ClearFieldsAndMarkers();
 
-                    // Крок 3: Центрування карти у географічному центрі міста
                     if (CityCoordinates.TryGetValue(selectedCity, out var coordinates))
                     {
                         string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
                         Console.WriteLine($"[OnCitySelected] Executing JavaScript: {script}");
 
-                        await MapWebView.EvaluateJavaScriptAsync("clearMarkersAndRoutes()"); // Очищення перед центруванням
-                        await MapWebView.EvaluateJavaScriptAsync(script); // Центрування карти
+                        await MapWebView.EvaluateJavaScriptAsync("clearMarkersAndRoutes()");
+                        await MapWebView.EvaluateJavaScriptAsync(script);
                     }
                     else
                     {
@@ -1438,12 +1435,10 @@ namespace Kursova
                         return;
                     }
 
-                    // Крок 4: Підготовка JSON для передачі у JavaScript
                     string json = $"{{\"city\": \"{selectedCity}\"}}";
                     await MapWebView.EvaluateJavaScriptAsync($"receiveDataFromCSharp('{json}')");
                     Console.WriteLine($"[OnCitySelected] Data sent to JS: {json}");
 
-                    // Крок 5: Оновлення списку маршрутів для вибраного міста
                     UpdateDisplayedRoutes(selectedCity);
 
                     Console.WriteLine($"[OnCitySelected] Routes updated for city: {selectedCity}");
@@ -1812,6 +1807,13 @@ namespace Kursova
 
             Console.WriteLine("Поля та маркери очищено.");
         }
+
+        private void OnBackButtonClicked(object sender, EventArgs e)
+        {
+            MapInterface.IsVisible = false;
+            InitialInterface.IsVisible = true;
+        }
+
 
         private async void OnBuildRouteClicked(object sender, EventArgs e)
         {
