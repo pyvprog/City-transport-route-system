@@ -118,7 +118,7 @@ namespace Kursova
 
         private void LoadRoutesData()
         {
-            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
             Routes = RouteService.LoadRoutes(filePath);
         }
 
@@ -346,7 +346,7 @@ namespace Kursova
                 IsAdminLoggedIn = true;
                 AdminLoginPopup.IsVisible = false;
 
-                string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
                 Routes = RouteService.LoadRoutes(filePath);
 
                 ShowAdminInterface();
@@ -366,7 +366,7 @@ namespace Kursova
 
             DisplayedRoutes.Clear();
 
-            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
             Routes = RouteService.LoadRoutes(filePath);
 
             foreach (var city in Routes.Keys)
@@ -493,9 +493,10 @@ namespace Kursova
             {
                 try
                 {
+                    string newFilePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
                     var json = JsonConvert.SerializeObject(routes, Formatting.Indented);
 
-                    File.WriteAllText(filePath, json);
+                    File.WriteAllText(newFilePath, json);
                 }
                 catch (Exception ex)
                 {
@@ -721,7 +722,7 @@ namespace Kursova
                     Routes.Remove(cityName);
                 }
 
-                string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
                 RouteService.SaveRoutes(Routes, filePath);
 
                 OnCityFilterChanged(this, EventArgs.Empty);
@@ -961,7 +962,7 @@ namespace Kursova
                 Routes[cityName].Add(newRoute);
             }
 
-            string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+            string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
             RouteService.SaveRoutes(Routes, filePath);
 
             OnCityFilterUpdatedWithValidation("Всі");
@@ -1217,7 +1218,7 @@ namespace Kursova
                 {
                     routeToUpdate.Stops[stopIndex] = updatedStop;
 
-                    string filePath = Path.Combine(FileSystem.AppDataDirectory, "routes.json");
+                    string filePath = Path.Combine(AppContext.BaseDirectory, "Data", "routes.json");
                     RouteService.SaveRoutes(Routes, filePath);
 
                     ClearStopFieldWarnings();
@@ -1362,10 +1363,8 @@ namespace Kursova
             string searchText = e.NewTextValue?.Trim().ToLower() ?? string.Empty;
             Console.WriteLine($"City search text changed: {searchText}");
 
-            // Очищення списку фільтрованих міст
             FilteredCities.Clear();
 
-            // Фільтруємо доступні міста
             var filtered = _allCities
                 .Where(c => c.ToLower().StartsWith(searchText))
                 .ToList();
@@ -1377,7 +1376,6 @@ namespace Kursova
 
             Console.WriteLine($"Filtered cities count: {FilteredCities.Count}");
 
-            // Динамічний розмір підказок
             const int itemHeight = 50;
             const int maxHeight = 300;
             int calculatedHeight = FilteredCities.Count > 0
@@ -1387,10 +1385,8 @@ namespace Kursova
             AbsoluteLayout.SetLayoutBounds(CitySuggestionsParent, new Rect(0.5, 155, 300, calculatedHeight));
             CitySuggestions.IsVisible = FilteredCities.Count > 0;
 
-            // Оновлюємо статус вибору міста
             IsCitySelected = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
 
-            // Додатково: Оновлення списку маршрутів для введеного міста
             if (IsCitySelected)
             {
                 var filteredRoutes = Routes
@@ -1413,32 +1409,74 @@ namespace Kursova
         {
             if (e.CurrentSelection.FirstOrDefault() is string selectedCity)
             {
-                // Оновлення вибраного міста
+                Console.WriteLine($"[OnCitySelected] Selected city: {selectedCity}");
+
+                // Крок 1: Оновлення інтерфейсу користувача
                 CityEntry.Text = selectedCity;
                 CitySuggestions.SelectedItem = null;
                 FilteredCities.Clear();
-
                 IsCitySelected = true;
 
-                Console.WriteLine($"[OnCitySelected] Selected city: {selectedCity}");
-
-                await ClearFieldsAndMarkers();
-                await MoveMapToCity(selectedCity);
-
-                DisplayedRoutes.Clear();
-
-                if (Routes.ContainsKey(selectedCity))
+                try
                 {
-                    foreach (var route in Routes[selectedCity])
-                    {
-                        DisplayedRoutes.Add(route);
-                    }
-                }
+                    // Крок 2: Очищення маркерів, маршрутів та полів вводу
+                    await ClearFieldsAndMarkers();
 
-                Console.WriteLine($"[OnCitySelected] Updated routes for city: {selectedCity}");
+                    // Крок 3: Центрування карти у географічному центрі міста
+                    if (CityCoordinates.TryGetValue(selectedCity, out var coordinates))
+                    {
+                        string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
+                        Console.WriteLine($"[OnCitySelected] Executing JavaScript: {script}");
+
+                        await MapWebView.EvaluateJavaScriptAsync("clearMarkersAndRoutes()"); // Очищення перед центруванням
+                        await MapWebView.EvaluateJavaScriptAsync(script); // Центрування карти
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[OnCitySelected] City '{selectedCity}' not found in coordinates.");
+                        await DisplayAlert("Помилка", "Цього міста немає у базі даних.", "OK");
+                        return;
+                    }
+
+                    // Крок 4: Підготовка JSON для передачі у JavaScript
+                    string json = $"{{\"city\": \"{selectedCity}\"}}";
+                    await MapWebView.EvaluateJavaScriptAsync($"receiveDataFromCSharp('{json}')");
+                    Console.WriteLine($"[OnCitySelected] Data sent to JS: {json}");
+
+                    // Крок 5: Оновлення списку маршрутів для вибраного міста
+                    UpdateDisplayedRoutes(selectedCity);
+
+                    Console.WriteLine($"[OnCitySelected] Routes updated for city: {selectedCity}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[OnCitySelected] Error: {ex.Message}");
+                    await DisplayAlert("Помилка", "Сталася помилка при обробці вибору міста.", "OK");
+                }
+            }
+            else
+            {
+                Console.WriteLine("[OnCitySelected] No city selected.");
             }
         }
 
+        private void UpdateDisplayedRoutes(string city)
+        {
+            DisplayedRoutes.Clear();
+
+            if (Routes.ContainsKey(city))
+            {
+                foreach (var route in Routes[city])
+                {
+                    DisplayedRoutes.Add(route);
+                }
+                Console.WriteLine($"Маршрути оновлено для міста: {city}");
+            }
+            else
+            {
+                Console.WriteLine($"Маршрути для міста \"{city}\" відсутні.");
+            }
+        }
 
         private async Task OnCityEntryCompleted(object sender, EventArgs e)
         {
@@ -1455,24 +1493,40 @@ namespace Kursova
 
         private async Task MoveMapToCity(string cityName)
         {
-            Console.WriteLine($"Moving map to city: {cityName}");
+            Console.WriteLine($"[MoveMapToCity] Moving map to city: {cityName}");
+
             if (CityCoordinates.TryGetValue(cityName, out var coordinates))
             {
                 if (MapWebView != null)
                 {
-                    string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
-                    Console.WriteLine($"Executing JavaScript to center map: {script}");
-                    await MapWebView.EvaluateJavaScriptAsync(script);
+                    try
+                    {
+                        string clearScript = "clearMarkersAndRoutes();";
+                        Console.WriteLine("[MoveMapToCity] Clearing markers and routes...");
+                        await MapWebView.EvaluateJavaScriptAsync(clearScript);
+
+                        string setCenterScript = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12);";
+                        Console.WriteLine($"[MoveMapToCity] Executing JavaScript to center map: {setCenterScript}");
+                        await MapWebView.EvaluateJavaScriptAsync(setCenterScript);
+
+                        Console.WriteLine($"[MoveMapToCity] Map successfully centered to city: {cityName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[MoveMapToCity] JavaScript execution error: {ex.Message}");
+                        await DisplayAlert("Помилка", "Не вдалося перемістити карту до обраного міста.", "OK");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("MapWebView is null. Cannot move map to city.");
+                    Console.WriteLine("[MoveMapToCity] MapWebView is null. Cannot move map.");
+                    await DisplayAlert("Помилка", "Карта наразі недоступна.", "OK");
                 }
             }
             else
             {
-                Console.WriteLine($"City {cityName} not found in coordinates dictionary.");
-                await DisplayAlert("Місто не знайдено", "Цього міста наразі немає в базі.", "ОК");
+                Console.WriteLine($"[MoveMapToCity] City '{cityName}' not found in coordinates dictionary.");
+                await DisplayAlert("Місто не знайдено", "Цього міста наразі немає в базі.", "OK");
             }
         }
 
@@ -1759,9 +1813,27 @@ namespace Kursova
             Console.WriteLine("Поля та маркери очищено.");
         }
 
-        private void OnBuildRouteClicked(object sender, EventArgs e)
+        private async void OnBuildRouteClicked(object sender, EventArgs e)
         {
-            DisplayAlert("Побудова маршруту", "Логіка побудови маршруту буде додана пізніше.", "OK");
+            string startAddress = StartPointEntry.Text?.Trim() ?? string.Empty;
+            string endAddress = DestinationPointEntry.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(startAddress) && !string.IsNullOrEmpty(endAddress))
+            {
+                var startCoordinates = await GetCoordinatesFromAddress(startAddress);
+                var endCoordinates = await GetCoordinatesFromAddress(endAddress);
+
+                if (startCoordinates != null && endCoordinates != null)
+                {
+                    string json = $"{{\"start\": [{startCoordinates.Value.lat}, {startCoordinates.Value.lng}], " +
+                                  $"\"end\": [{endCoordinates.Value.lat}, {endCoordinates.Value.lng}]}}";
+                    await MapWebView.EvaluateJavaScriptAsync($"receiveDataFromCSharp('{json}')");
+                }
+                else
+                {
+                    await DisplayAlert("Помилка", "Не вдалося знайти координати для введених адрес.", "OK");
+                }
+            }
         }
 
         private void OnMapLoaded(object sender, WebNavigatedEventArgs e)
