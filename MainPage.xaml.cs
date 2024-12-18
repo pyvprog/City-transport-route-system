@@ -402,6 +402,14 @@ namespace Kursova
 
             public List<(string StopName, double Latitude, double Longitude)> Stops { get; set; } = new();
 
+            public string Fare => CityName switch
+            {
+                "Київ" => $"{TransportFare.KyivFare} грн",
+                "Львів" => $"{TransportFare.LvivFare} грн",
+                "Херсон" => $"{TransportFare.KhersonFare} грн",
+                _ => "Ціна не вказана"
+            };
+
             [JsonIgnore]
             public bool HasMissingData { get; set; } = false;
 
@@ -1255,7 +1263,7 @@ namespace Kursova
         public static class TransportFare
         {
             public const decimal KyivFare = 8.00m;      // Ціна проїзду в Києві
-            public const decimal LvivFare = 10.00m;     // Ціна проїзду у Львові
+            public const decimal LvivFare = 15.00m;     // Ціна проїзду у Львові
             public const decimal KhersonFare = 6.00m;   // Ціна проїзду в Херсоні
         }
 
@@ -1657,7 +1665,6 @@ namespace Kursova
             {
                 var response = await client.GetAsync(url);
 
-                // Логування статусу відповіді
                 Console.WriteLine($"[GetCoordinatesFromAddress] Response Status: {response.StatusCode}");
 
                 if (response.IsSuccessStatusCode)
@@ -1720,6 +1727,7 @@ namespace Kursova
             string address = StartPointEntry?.Text?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(address))
             {
+                await MapWebView.EvaluateJavaScriptAsync("clearMarker('startPoint')");
                 await DisplayAlert("Помилка", "Будь ласка, введіть адресу місця відправлення.", "OK");
                 return;
             }
@@ -1757,6 +1765,7 @@ namespace Kursova
             string address = DestinationPointEntry?.Text?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(address))
             {
+                await MapWebView.EvaluateJavaScriptAsync("clearMarker('endPoint')");
                 await DisplayAlert("Помилка", "Будь ласка, введіть адресу місця прибуття.", "OK");
                 return;
             }
@@ -1815,32 +1824,32 @@ namespace Kursova
         }
 
 
-        private async void OnBuildRouteClicked(object sender, EventArgs e)
-        {
-            string startAddress = StartPointEntry.Text?.Trim() ?? string.Empty;
-            string endAddress = DestinationPointEntry.Text?.Trim() ?? string.Empty;
+        //private async void OnBuildRouteClicked(object sender, EventArgs e)
+        //{
+        //    string startAddress = StartPointEntry.Text?.Trim() ?? string.Empty;
+        //    string endAddress = DestinationPointEntry.Text?.Trim() ?? string.Empty;
 
-            if (!string.IsNullOrEmpty(startAddress) && !string.IsNullOrEmpty(endAddress))
-            {
-                var startCoordinates = await GetCoordinatesFromAddress(startAddress);
-                var endCoordinates = await GetCoordinatesFromAddress(endAddress);
+        //    if (!string.IsNullOrEmpty(startAddress) && !string.IsNullOrEmpty(endAddress))
+        //    {
+        //        var startCoordinates = await GetCoordinatesFromAddress(startAddress);
+        //        var endCoordinates = await GetCoordinatesFromAddress(endAddress);
 
-                if (startCoordinates != null && endCoordinates != null)
-                {
-                    string json = $"{{\"start\": [{startCoordinates.Value.lat}, {startCoordinates.Value.lng}], " +
-                                  $"\"end\": [{endCoordinates.Value.lat}, {endCoordinates.Value.lng}]}}";
-                    await MapWebView.EvaluateJavaScriptAsync($"receiveDataFromCSharp('{json}')");
-                }
-                else
-                {
-                    await DisplayAlert("Помилка", "Не вдалося знайти координати для введених адрес.", "OK");
-                }
-            }
-        }
+        //        if (startCoordinates != null && endCoordinates != null)
+        //        {
+        //            string json = $"{{\"start\": [{startCoordinates.Value.lat}, {startCoordinates.Value.lng}], " +
+        //                          $"\"end\": [{endCoordinates.Value.lat}, {endCoordinates.Value.lng}]}}";
+        //            await MapWebView.EvaluateJavaScriptAsync($"receiveDataFromCSharp('{json}')");
+        //        }
+        //        else
+        //        {
+        //            await DisplayAlert("Помилка", "Не вдалося знайти координати для введених адрес.", "OK");
+        //        }
+        //    }
+        //}
 
-        private void OnMapLoaded(object sender, WebNavigatedEventArgs e)
-        {
-            // Карта успішно завантажена
-        }
+        //private void OnMapLoaded(object sender, WebNavigatedEventArgs e)
+        //{
+        //    // Карта успішно завантажена
+        //}
     }
 }

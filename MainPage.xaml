@@ -50,6 +50,7 @@
                     Text="Розпочати подорож"
                     BackgroundColor="LightGray"
                     TextColor="Black"
+                    FontAttributes="Bold"
                     HorizontalOptions="Center"
                     VerticalOptions="Center"
                     WidthRequest="250"
@@ -71,10 +72,16 @@
                     TextColor="White"
                     HorizontalOptions="Center"
                     VerticalOptions="End"
-                    WidthRequest="70"
-                    HeightRequest="50"
+                    WidthRequest="100"
+                    HeightRequest="100"
                     Clicked="OnAdminButtonClicked" 
-                    IsVisible="True" />
+                    IsVisible="True" >
+                <Button.Triggers>
+                    <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                        <Setter Property="Scale" Value="1.1" />
+                    </Trigger>
+                </Button.Triggers>
+            </Button>
 
 
             <!-- Блок новин -->
@@ -155,8 +162,20 @@
                     <Label Text="Вхід для адміністратора" FontAttributes="Bold" FontSize="18" HorizontalOptions="Center" />
                     <Entry x:Name="AdminLoginEntry" Placeholder="Логін" TextColor="Black"/>
                     <Entry x:Name="AdminPasswordEntry" Placeholder="Пароль" IsPassword="True" TextColor="Black"/>
-                    <Button Text="Увійти" Clicked="OnAdminLoginClicked" BackgroundColor="LightGray" TextColor="Black" />
-                    <Button Text="Скасувати" Clicked="OnAdminCancelClicked" BackgroundColor="Transparent" TextColor="Black" />
+                    <Button Text="Увійти" Clicked="OnAdminLoginClicked" BackgroundColor="LightGray" TextColor="Black" >
+                        <Button.Triggers>
+                            <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                                <Setter Property="Scale" Value="1.1" />
+                            </Trigger>
+                        </Button.Triggers>
+                    </Button>
+                        <Button Text="Скасувати" Clicked="OnAdminCancelClicked" BackgroundColor="Transparent" TextColor="Black" >
+                        <Button.Triggers>
+                            <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                                <Setter Property="Scale" Value="1.1" />
+                            </Trigger>
+                        </Button.Triggers>
+                    </Button>
                 </StackLayout>
             </Frame>
         </Grid>
@@ -521,7 +540,7 @@
                     </BoxView.GestureRecognizers>
                 </BoxView>
 
-                <!-- Кнопка -->
+                <!-- Кнопка 
                 <Button Text="Побудувати маршрут"
                         BackgroundColor="LightGray"
                         TextColor="Black"
@@ -533,30 +552,43 @@
                             <Setter Property="Scale" Value="1.1" />
                         </Trigger>
                     </Button.Triggers>
-                </Button>
+                </Button-->
 
                 <!-- Нижня частина з Grid: список маршрутів і карта -->
-                <Grid AbsoluteLayout.LayoutBounds="0.5,0.95,0.98,0.67"
+                <Grid AbsoluteLayout.LayoutBounds="0.5,0.95,0.98,0.75"
                         AbsoluteLayout.LayoutFlags="All"
                         ColumnDefinitions="*,2*">
                     <!-- Список маршрутів -->
                     <StackLayout Grid.Column="0" BackgroundColor="#E8E8E8">
                         <Label Text="Список маршрутів"
-                       FontAttributes="Bold"
-                       FontSize="18"
-                       HorizontalOptions="Center"
-                       Margin="0,10" />
+                               TextColor="Black"
+                               FontAttributes="Bold"
+                               FontSize="18"
+                               HorizontalOptions="Center"
+                               Margin="0,10" />
                         <CollectionView x:Name="RoutesListView"
                                 ItemsSource="{Binding FilteredRoutes}"
-                                SelectionMode="Single"
-                                HeightRequest="400"
+                                SelectionMode="Single"    
+                                HorizontalOptions="FillAndExpand"
                                 VerticalOptions="FillAndExpand">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <StackLayout Padding="5">
                                         <!--Label Text="{Binding RouteNumber}" FontAttributes="Bold" -->
-                                        <Label Text="{Binding Description}" TextColor="Black" FontSize="14" />
-                                        <Label Text="{Binding TransportType}" TextColor="Black" FontSize="12" />
+                                        <Label Text="{Binding Description}" TextColor="Blue" FontSize="18" />
+                                        <Label Text="{Binding Details}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Довжина маршруту (км):" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding RouteLength}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Кількість зупинок:" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding StopCount}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Кількість транспорту:" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding VehicleCount}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Інтервал між транспортом:" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding Interval}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Тип транспорту:" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding TransportType}" TextColor="Black" FontSize="16" />
+                                        <Label Text="Ціна проїзду:" TextColor="Black" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding Fare}" TextColor="Black" FontSize="16" />
                                     </StackLayout>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>

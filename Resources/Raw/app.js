@@ -5,6 +5,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let routesData = {};
 let currentMarkers = [];
+let specialMarkers = {
+    startPoint: null,
+    endPoint: null
+};
 let currentRouteControl = null;
 
 const routesFileUrl = 'Data/routes.json';
@@ -55,7 +59,6 @@ function moveMapToCity(data) {
     try {
         const parsedData = JSON.parse(data);
         map.setView([parsedData.lat, parsedData.lng], parsedData.zoom);
-        console.log(`Карта переміщена до: [${parsedData.lat}, ${parsedData.lng}]`);
     } catch (error) {
         console.error("Помилка переміщення карти: ", error);
     }
@@ -70,24 +73,24 @@ function setMapCenter(lat, lng, zoom = 12) {
     }
 }
 
-function findNearestStop(point) {
-    let nearestStop = null;
-    let minDistance = Infinity;
+//function findNearestStop(point) {
+//    let nearestStop = null;
+//    let minDistance = Infinity;
 
-    Object.values(routesData).forEach(cityRoutes => {
-        cityRoutes.forEach(route => {
-            route.Stops.forEach(stop => {
-                const distance = getDistance(point, [stop.Item2, stop.Item3]);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearestStop = { stop, route };
-                }
-            });
-        });
-    });
+//    Object.values(routesData).forEach(cityRoutes => {
+//        cityRoutes.forEach(route => {
+//            route.Stops.forEach(stop => {
+//                const distance = getDistance(point, [stop.Item2, stop.Item3]);
+//                if (distance < minDistance) {
+//                    minDistance = distance;
+//                    nearestStop = { stop, route };
+//                }
+//            });
+//        });
+//    });
 
-    return nearestStop;
-}
+//    return nearestStop;
+//}
 
 function addMarker(lat, lng, markerKey) {
     let iconOptions;
@@ -95,18 +98,32 @@ function addMarker(lat, lng, markerKey) {
     switch (markerKey) {
         case 'startPoint':
             iconOptions = startPointIcon;
+            clearMarker(markerKey);
+            specialMarkers[markerKey] = L.marker([lat, lng], { icon: iconOptions }).addTo(map);
+            specialMarkers[markerKey].bindPopup(`Місце відправлення<br>Latitude: ${lat}, Longitude: ${lng}`).openPopup();
             break;
+
         case 'endPoint':
             iconOptions = endPointIcon;
+            clearMarker(markerKey);
+            specialMarkers[markerKey] = L.marker([lat, lng], { icon: iconOptions }).addTo(map);
+            specialMarkers[markerKey].bindPopup(`Місце призначення<br>Latitude: ${lat}, Longitude: ${lng}`).openPopup();
             break;
-        default: 
+
+        default:
             iconOptions = stopIcon;
+            const marker = L.marker([lat, lng], { icon: iconOptions }).addTo(map);
+            marker.bindPopup(`Latitude: ${lat}, Longitude: ${lng}`);
+            currentMarkers.push(marker);
             break;
     }
+}
 
-    const marker = L.marker([lat, lng], { icon: iconOptions }).addTo(map);
-    marker.bindPopup(`Latitude: ${lat}, Longitude: ${lng}`);
-    currentMarkers.push(marker);
+function clearMarker(markerKey) {
+    if (specialMarkers[markerKey]) {
+        map.removeLayer(specialMarkers[markerKey]);
+        specialMarkers[markerKey] = null;
+    }
 }
 
 function getDistance(p1, p2) {
@@ -143,7 +160,11 @@ function drawCityRoutes(city) {
             if (stop.Item2 && stop.Item3) {
                 const marker = L.marker([stop.Item2, stop.Item3], { icon: stopIcon }) 
                     .addTo(map)
-                    .bindPopup(`<b>${stop.Item1}</b><br>Тип транспорту: ${route.TransportType || 'невідомий'}`);
+                    .bindPopup(`
+                        <b>${stop.Item1}</b><br>
+                        Опис маршруту: ${route.Description || 'Опис відсутній'}<br>
+                        Тип транспорту: ${route.TransportType || 'невідомий'}
+                    `);
 
                 currentMarkers.push(marker); 
                 routeWaypoints.push(L.latLng(stop.Item2, stop.Item3)); 
@@ -181,29 +202,29 @@ function getRouteColor(type) {
 }
 
 
-function drawRoute(startPoint, endPoint) {
-    clearMarkersAndRoutes();
+//function drawRoute(startPoint, endPoint) {
+//    clearMarkersAndRoutes();
 
-    if (!startPoint || !endPoint) {
-        console.error("Не вказано точки початку або кінця маршруту.");
-        return;
-    }
+//    if (!startPoint || !endPoint) {
+//        console.error("Не вказано точки початку або кінця маршруту.");
+//        return;
+//    }
 
-    const waypoints = [
-        L.latLng(startPoint[0], startPoint[1]),
-        L.latLng(endPoint[0], endPoint[1])
-    ];
+//    const waypoints = [
+//        L.latLng(startPoint[0], startPoint[1]),
+//        L.latLng(endPoint[0], endPoint[1])
+//    ];
 
-    currentRouteControl = L.Routing.control({
-        waypoints: waypoints,
-        routeWhileDragging: true,
-        createMarker: (i, waypoint, n) => {
-            return L.marker(waypoint.latLng).bindPopup(i === 0 ? "Початок маршруту" : "Кінець маршруту");
-        }
-    }).addTo(map);
+//    currentRouteControl = L.Routing.control({
+//        waypoints: waypoints,
+//        routeWhileDragging: true,
+//        createMarker: (i, waypoint, n) => {
+//            return L.marker(waypoint.latLng).bindPopup(i === 0 ? "Початок маршруту" : "Кінець маршруту");
+//        }
+//    }).addTo(map);
 
-    console.log("Маршрут побудовано між точками:", startPoint, endPoint);
-}
+//    console.log("Маршрут побудовано між точками:", startPoint, endPoint);
+//}
 
 
 function receiveDataFromCSharp(data) {
