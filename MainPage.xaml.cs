@@ -1430,6 +1430,7 @@ namespace Kursova
 
                     if (CityCoordinates.TryGetValue(selectedCity, out var coordinates))
                     {
+                        await MapWebView.EvaluateJavaScriptAsync("clearMarker('startPoint'); clearMarker('endPoint');");
                         string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
                         Console.WriteLine($"[OnCitySelected] Executing JavaScript: {script}");
 
