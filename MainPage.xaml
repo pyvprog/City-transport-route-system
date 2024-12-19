@@ -334,23 +334,47 @@
                 <Button x:Name="SaveCoordinatesButton"
             Text="Зберегти координати"
             IsEnabled="False"
-            Clicked="OnSaveCoordinatesClicked" />
+            Clicked="OnSaveCoordinatesClicked" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
                 <!-- Кнопки дій -->
                 <Button Text="Додати/Оновити маршрут"
             Clicked="OnAddOrUpdateRouteClicked"
             BackgroundColor="LightGray"
-            Margin="10" />
+            Margin="10" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
                 <Button Text="Редагувати"
             Clicked="OnEditRouteClicked"
             BackgroundColor="LightGray"
-            Margin="10" />
+            Margin="10" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
                 <Button Text="Видалити"
             Clicked="OnDeleteRouteClicked"
             BackgroundColor="Red"
-            Margin="10" />
+            Margin="10" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
 
             </StackLayout>
 
@@ -370,14 +394,26 @@
                 BackgroundColor="Red"
                 TextColor="White"
                 Margin="10"
-                WidthRequest="250" />
+                WidthRequest="250" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
                 <Button Text="Скидання змін"
                 x:Name="ResetChangesButton"
                 Clicked="OnResetChangesClicked"
                 BackgroundColor="LightGray"
                 TextColor="Black"
                 Margin="10"
-                WidthRequest="170" />
+                WidthRequest="170" >
+                    <Button.Triggers>
+                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
+                            <Setter Property="Scale" Value="1.1" />
+                        </Trigger>
+                    </Button.Triggers>
+                </Button>
             </StackLayout>
 
         </Grid>
