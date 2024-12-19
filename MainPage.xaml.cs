@@ -857,7 +857,8 @@ namespace Kursova
                 string.IsNullOrWhiteSpace(IntervalEntry.Text) ||
                 string.IsNullOrWhiteSpace(TransportTypeEntry.Text))
             {
-                errors.Add("Будь ласка, заповніть усі поля маршруту.");
+                DisplayAlert("Помилка", "Будь ласка, заповніть усі поля маршруту.", "OK");
+                return;
             }
 
             var cityName = CityNameEntry.Text.Trim();
