@@ -189,10 +189,10 @@
              WidthRequest="500">
                 <!-- Напис над списком -->
                 <Label Text="Список маршрутів" 
-           FontSize="24" 
-           FontAttributes="Bold" 
-           HorizontalOptions="Start" 
-           VerticalOptions="Start" />
+                       FontSize="24" 
+                       FontAttributes="Bold" 
+                       HorizontalOptions="Start" 
+                       VerticalOptions="Start" />
 
                 <!-- Таблиця маршрутів -->
                 <CollectionView x:Name="RoutesCollectionView"
@@ -215,11 +215,6 @@
                                         FontSize="14" 
                                         VerticalOptions="Center" 
                                         Grid.Column="1" />
-                                <!-- Назва міста
-                                <Label Text="{Binding CityName}" 
-                                        FontSize="14" 
-                                        VerticalOptions="Center" 
-                                        Grid.Column="3" -->
                                 <!-- Знак оклику, якщо дані відсутні -->
                                 <Label Text="❗"
                                         FontSize="18"
@@ -380,14 +375,6 @@
 
             <!-- Кнопки управління -->
             <StackLayout Orientation="Horizontal" HorizontalOptions="Center" VerticalOptions="End" Margin="10">
-                <!--Button Text="Зберегти зміни"
-                x:Name="SaveChangesButton"
-                Clicked="OnSaveChangesClicked"
-                IsEnabled="False"
-                BackgroundColor="LightGray"
-                TextColor="Black"
-                Margin="10"
-                WidthRequest="150" -->
                 <Button Text="Вийти з режиму адміністратора"
                 x:Name="ExitAdminModeButton"
                 Clicked="OnExitAdminModeClicked"
@@ -575,20 +562,6 @@
                         <TapGestureRecognizer Tapped="OnTapGestureRecognizerTapped" />
                     </BoxView.GestureRecognizers>
                 </BoxView>
-
-                <!-- Кнопка 
-                <Button Text="Побудувати маршрут"
-                        BackgroundColor="LightGray"
-                        TextColor="Black"
-                        AbsoluteLayout.LayoutBounds="0.5,160,200,50"
-                        AbsoluteLayout.LayoutFlags="XProportional"
-                        Clicked="OnBuildRouteClicked" >
-                    <Button.Triggers>
-                        <Trigger TargetType="Button" Property="IsPressed" Value="True">
-                            <Setter Property="Scale" Value="1.1" />
-                        </Trigger>
-                    </Button.Triggers>
-                </Button-->
 
                 <!-- Нижня частина з Grid: список маршрутів і карта -->
                 <Grid AbsoluteLayout.LayoutBounds="0.5,0.95,0.98,0.75"

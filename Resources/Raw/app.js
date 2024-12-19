@@ -54,7 +54,6 @@ function clearMarkersAndRoutes() {
     console.log("Маршрути та маркери очищено.");
 }
 
-
 function moveMapToCity(data) {
     try {
         const parsedData = JSON.parse(data);
@@ -72,25 +71,6 @@ function setMapCenter(lat, lng, zoom = 12) {
         console.error("Помилка центрування карти: ", error);
     }
 }
-
-//function findNearestStop(point) {
-//    let nearestStop = null;
-//    let minDistance = Infinity;
-
-//    Object.values(routesData).forEach(cityRoutes => {
-//        cityRoutes.forEach(route => {
-//            route.Stops.forEach(stop => {
-//                const distance = getDistance(point, [stop.Item2, stop.Item3]);
-//                if (distance < minDistance) {
-//                    minDistance = distance;
-//                    nearestStop = { stop, route };
-//                }
-//            });
-//        });
-//    });
-
-//    return nearestStop;
-//}
 
 function addMarker(lat, lng, markerKey) {
     let iconOptions;
@@ -201,32 +181,6 @@ function getRouteColor(type) {
     }
 }
 
-
-//function drawRoute(startPoint, endPoint) {
-//    clearMarkersAndRoutes();
-
-//    if (!startPoint || !endPoint) {
-//        console.error("Не вказано точки початку або кінця маршруту.");
-//        return;
-//    }
-
-//    const waypoints = [
-//        L.latLng(startPoint[0], startPoint[1]),
-//        L.latLng(endPoint[0], endPoint[1])
-//    ];
-
-//    currentRouteControl = L.Routing.control({
-//        waypoints: waypoints,
-//        routeWhileDragging: true,
-//        createMarker: (i, waypoint, n) => {
-//            return L.marker(waypoint.latLng).bindPopup(i === 0 ? "Початок маршруту" : "Кінець маршруту");
-//        }
-//    }).addTo(map);
-
-//    console.log("Маршрут побудовано між точками:", startPoint, endPoint);
-//}
-
-
 function receiveDataFromCSharp(data) {
     try {
         const parsedData = JSON.parse(data);
@@ -254,7 +208,6 @@ function receiveDataFromCSharp(data) {
         console.error("Помилка обробки даних з C#: ", error);
     }
 }
-
 
 function isValidCoordinate(coord) {
     return Array.isArray(coord) && coord.length === 2 &&
