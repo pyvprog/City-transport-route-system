@@ -746,6 +746,11 @@ namespace Kursova
 
         private void OnExitAdminModeClicked(object sender, EventArgs e)
         {
+            DisplayAlert(
+            "Увага",
+            "Якщо ви вносили якісь зміни, треба перезапустити застосунок.",
+            "OK"
+            );
             ClearAllFields();
             ClearStopFieldWarnings();
             ValidateFieldsForCoordinates();
