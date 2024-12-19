@@ -1290,7 +1290,14 @@ namespace Kursova
             AbsoluteLayout.SetLayoutBounds(CitySuggestionsParent, new Rect(0.5, 155, 300, calculatedHeight));
             CitySuggestions.IsVisible = FilteredCities.Count > 0;
 
-            IsCitySelected = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
+            bool isCityValid = !string.IsNullOrEmpty(e.NewTextValue) && _allCities.Contains(e.NewTextValue);
+
+            bool isCitySelectedFromDropdown = CitySuggestions.SelectedItem != null;
+
+            IsCitySelected = isCityValid && isCitySelectedFromDropdown;
+
+            StartPointEntry.IsEnabled = IsCitySelected;
+            DestinationPointEntry.IsEnabled = IsCitySelected;
 
             if (IsCitySelected)
             {
@@ -1312,7 +1319,7 @@ namespace Kursova
 
         private async void OnCitySelected(object sender, SelectionChangedEventArgs e)
         {
-            if (e.CurrentSelection.FirstOrDefault() is string selectedCity)
+            if (e.CurrentSelection.FirstOrDefault() is string selectedCity && !string.IsNullOrWhiteSpace(selectedCity))
             {
                 Console.WriteLine($"[OnCitySelected] Selected city: {selectedCity}");
 
@@ -1328,6 +1335,7 @@ namespace Kursova
                     if (CityCoordinates.TryGetValue(selectedCity, out var coordinates))
                     {
                         await MapWebView.EvaluateJavaScriptAsync("clearMarker('startPoint'); clearMarker('endPoint');");
+
                         string script = $"setMapCenter({coordinates.Latitude.ToString(CultureInfo.InvariantCulture)}, {coordinates.Longitude.ToString(CultureInfo.InvariantCulture)}, 12)";
                         Console.WriteLine($"[OnCitySelected] Executing JavaScript: {script}");
 
@@ -1338,6 +1346,9 @@ namespace Kursova
                     {
                         Console.WriteLine($"[OnCitySelected] City '{selectedCity}' not found in coordinates.");
                         await DisplayAlert("Помилка", "Цього міста немає у базі даних.", "OK");
+                        IsCitySelected = false;
+                        StartPointEntry.IsEnabled = false;
+                        DestinationPointEntry.IsEnabled = false;
                         return;
                     }
 
@@ -1347,17 +1358,30 @@ namespace Kursova
 
                     UpdateDisplayedRoutes(selectedCity);
 
+                    StartPointEntry.IsEnabled = true;
+                    DestinationPointEntry.IsEnabled = true;
+
                     Console.WriteLine($"[OnCitySelected] Routes updated for city: {selectedCity}");
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[OnCitySelected] Error: {ex.Message}");
                     await DisplayAlert("Помилка", "Сталася помилка при обробці вибору міста.", "OK");
+
+                    IsCitySelected = false;
+                    StartPointEntry.IsEnabled = false;
+                    DestinationPointEntry.IsEnabled = false;
                 }
             }
             else
             {
                 Console.WriteLine("[OnCitySelected] No city selected.");
+                IsCitySelected = false;
+
+                StartPointEntry.IsEnabled = false;
+                DestinationPointEntry.IsEnabled = false;
+
+                RoutesListView.ItemsSource = null;
             }
         }
 
@@ -1377,6 +1401,7 @@ namespace Kursova
             {
                 Console.WriteLine($"Маршрути для міста \"{city}\" відсутні.");
             }
+            RoutesListView.ItemsSource = DisplayedRoutes;
         }
 
         private async Task OnCityEntryCompleted(object sender, EventArgs e)
